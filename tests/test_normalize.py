@@ -18,14 +18,24 @@ def test_unit_numbers(text, expected):
     assert normalize_numbers(text) == expected
 
 
-# ── 「两」不误触发量词 ─────────────────────────────────────────────────────────
+# ── 裸单位字不误触发 ──────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("text, expected", [
-    ("还有两个是没改的",  "还有两个是没改的"),
+    ("还有两个是没改的",  "还有两个是没改的"),   # 两 前无单位
     ("两只猫",           "两只猫"),
     ("两点之间",         "两点之间"),
+    ("百度一下",         "百度一下"),            # 百 后无数字
+    ("万岁",             "万岁"),
+    ("千禧年",           "千禧年"),
+    ("亿万富翁",         "亿万富翁"),
+    ("十分好",           "十分好"),
+    # 十 后紧跟数字/单位时仍正常转换
+    ("十五度",           "15 度"),
+    ("十二",             "12"),
+    ("一百万",           "1000000"),
+    ("三千万",           "30000000"),
 ])
-def test_liang_no_false_positive(text, expected):
+def test_bare_unit_no_false_positive(text, expected):
     assert normalize_numbers(text) == expected
 
 
@@ -85,6 +95,18 @@ def test_ip(text, expected):
     ("admin AT 一九二点一六八点一点一",    "admin@192.168.1.1"),
 ])
 def test_at_sign(text, expected):
+    assert normalize_numbers(text) == expected
+
+
+# ── 域名 / 邮箱后缀（点 + 字母） ─────────────────────────────────────────────
+
+@pytest.mark.parametrize("text, expected", [
+    ("example点com",                        "example.com"),
+    ("www点example点com",                   "www.example.com"),
+    ("user艾特example点com",                "user@example.com"),
+    ("admin at 幺九二点一六八点一点一点cn",  "admin@192.168.1.1.cn"),
+])
+def test_dot_alpha(text, expected):
     assert normalize_numbers(text) == expected
 
 

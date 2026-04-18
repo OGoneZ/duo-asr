@@ -52,8 +52,10 @@ def _dc(ch: str) -> str:
     return str(_DIGIT_MAP.get(ch, ch))
 
 
-# 含单位字的数字（三十二 / 一千两百五十 / 两百），可选小数
-_RE_UNIT = re.compile(rf'(?:{_DC}*{_UC})+{_DC}*(?:点{_DC}+)?')
+# 含单位字的数字；前瞻要求匹配范围内至少含一个数字字，
+# 防止「百度」「万岁」「十分好」等裸单位字被误匹配为 0
+_ALL_NUM = r'[零一二三四五六七八九两幺十百千万亿]'
+_RE_UNIT = re.compile(rf'(?={_ALL_NUM}*{_DC})(?:{_DC}*{_UC})+{_DC}*(?:点{_DC}+)?')
 # IP 地址：每段允许含十/百（如「一百」=100），四组点分隔
 _IP_SEG = rf'[零一二三四五六七八九两幺十百]+'
 _RE_IP = re.compile(rf'{_IP_SEG}(?:点{_IP_SEG}){{3}}')
@@ -66,6 +68,8 @@ _RE_TIME_LEAD = re.compile(rf'({_DC})(?=点{_DC}*{_UC})')
 _RE_SEQ = re.compile(rf'{_DC}{{2,}}')
 # X at/艾特 Y → X@Y（email/地址中的 @ 读法）
 _RE_AT = re.compile(r'(\S+?)(?:\s+at\s+|\s*艾特\s*)(\S+)', re.IGNORECASE)
+# 点 + 字母 → .字母（域名/邮箱后缀，如「点com」→「.com」）
+_RE_DOT_ALPHA = re.compile(r'点([a-zA-Z]+)')
 # 中文字符与阿拉伯数字之间插空格
 _RE_SPACE_L = re.compile(r'(?<=[^\x00-\x7F\s])(?=\d)')
 _RE_SPACE_R = re.compile(r'(?<=\d)(?=[^\x00-\x7F\s])')
@@ -105,6 +109,7 @@ def normalize_numbers(text: str) -> str:
     text = _RE_DEC.sub(_sub_dec, text)                      # 纯小数
     text = _RE_SEQ.sub(_sub_seq, text)                      # 连续数字序列
     text = _RE_AT.sub(r'\1@\2', text)                       # at/艾特 → @
+    text = _RE_DOT_ALPHA.sub(r'.\1', text)                  # 点com → .com
     text = _RE_SPACE_L.sub(' ', text)
     text = _RE_SPACE_R.sub(' ', text)
     return text
