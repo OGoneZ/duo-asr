@@ -1,4 +1,3 @@
-import logging
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, Request
 from fastapi.responses import JSONResponse
@@ -8,16 +7,9 @@ import tempfile
 import os
 import time
 
-# 日志配置
-for handler in logging.root.handlers[:]:
-    logging.root.removeHandler(handler)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    handlers=[logging.StreamHandler()]
-)
-logger = logging.getLogger(__name__)
+from logger import setup_logger
+
+logger = setup_logger(__name__)
 
 app = FastAPI()
 
