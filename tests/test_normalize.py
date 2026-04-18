@@ -93,9 +93,12 @@ def test_ip(text, expected):
     ("root艾特幺零点幺零点二零点三二",     "root@10.10.20.32"),
     ("root 艾特 一九二点一六八点一点一",   "root@192.168.1.1"),
     ("admin AT 一九二点一六八点一点一",    "admin@192.168.1.1"),
-    # at 右边无空格（中文 IP 直接相连）
+    # at 右边无空格
     ("lab at幺零点幺点幺点六",            "lab@10.1.1.6"),
     ("ssh lab at幺零点幺点幺点六",        "ssh lab@10.1.1.6"),
+    # at 前后均无空格（多at六六点六六点一点二 → 多@66.66.1.2）
+    ("多at六六点六六点一点二",            "多@66.66.1.2"),
+    ("珠宝多at六六点六六点一点二",        "珠宝多@66.66.1.2"),
 ])
 def test_at_sign(text, expected):
     assert normalize_numbers(text) == expected

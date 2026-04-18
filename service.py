@@ -70,7 +70,7 @@ _RE_SEQ = re.compile(rf'{_DC}{{2,}}')
 # 连续单个大写字母（S S H → SSH，D S P Y → DSPY）
 _RE_LETTER_SEQ = re.compile(r'(?<![A-Za-z])([A-Z])( [A-Z])+(?![A-Za-z])')
 # X at/艾特 Y → X@Y（email/地址中的 @ 读法）
-_RE_AT = re.compile(r'(\S+?)(?:\s+at\s*|\s*艾特\s*)(\S+)', re.IGNORECASE)
+_RE_AT = re.compile(r'(\S+?)(?:\s*at\s*|\s*艾特\s*)(\S+)', re.IGNORECASE)
 # 点 + 字母 → .字母（域名/邮箱后缀，如「点com」→「.com」）
 _RE_DOT_ALPHA = re.compile(r'点([a-zA-Z]+)')
 # 中文字符与阿拉伯数字之间插空格

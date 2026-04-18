@@ -27,7 +27,9 @@ async def restrict_ip(request: Request, call_next):
 async def transcribe(file: UploadFile = File(...)):
     start_time = time.time()
     audio_bytes = await file.read()
-    logger.info(f"收到文件: {file.filename}, 大小: {len(audio_bytes)} 字节")
+    size = len(audio_bytes)
+    size_str = f"{size / 1024 / 1024:.1f} MB" if size >= 1024 * 1024 else f"{size / 1024:.1f} KB"
+    logger.info(f"收到文件: {file.filename}, 大小: {size_str}")
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
         tmp.write(audio_bytes)
