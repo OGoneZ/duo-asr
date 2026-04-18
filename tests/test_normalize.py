@@ -126,11 +126,11 @@ def test_spacing(text, expected):
 # ── 大写字母序列合并 ──────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("text, expected", [
-    ("S S H",                   "SSH"),
-    ("D S P Y",                 "DSPY"),
+    ("S S H",                   "SSH"),      # ssh 不在热词中
+    ("D S P Y",                 "DSPy"),     # dspy 在热词中，合并后再热词纠正
     ("A P I",                   "API"),
     ("通过 S S H 连接",          "通过 SSH 连接"),
-    ("使用 D S P Y 框架",        "使用 DSPY 框架"),
+    ("使用 D S P Y 框架",        "使用 DSPy 框架"),
     ("A I",                     "AI"),
     ("U R L",                   "URL"),
     # 单个字母不触发
@@ -140,3 +140,50 @@ def test_spacing(text, expected):
 ])
 def test_letter_seq(text, expected):
     assert normalize_numbers(text) == expected
+
+
+# ── 热词替换 ───────────────────────────────────────────────────────────────────
+
+import hotwords as _hotwords_module
+
+@pytest.mark.parametrize("text, expected", [
+    ("用 fast api 构建服务",      "用 FastAPI 构建服务"),
+    ("用 rag 做检索",            "用 RAG 做检索"),
+    ("open ai 的接口",           "OpenAI 的接口"),
+    ("lang chain 很好用",        "LangChain 很好用"),
+    ("dspy 是一个框架",          "DSPy 是一个框架"),
+    ("使用 Fast API 加速",       "使用 FastAPI 加速"),
+])
+def test_hotwords(text, expected):
+    assert normalize_numbers(text) == expected
+
+
+def test_hotwords_hotswap(tmp_path):
+    import hotwords as hw
+
+    # 保存原状态
+    orig_file = hw._HOTWORDS_FILE
+    orig_mtime = hw._mtime
+    orig_cache = dict(hw._cache)
+    orig_re = hw._re_hotwords
+
+    # 切换到临时文件
+    fake_file = tmp_path / "hotwords.toml"
+    hw._HOTWORDS_FILE = fake_file
+    hw._mtime = 0
+    hw._re_hotwords = None
+    hw._cache.clear()
+
+    try:
+        fake_file.write_text('[hotwords]\nFOO = ["foo", "f o o"]\n', encoding="utf-8")
+        assert normalize_numbers("hello foo world") == "hello FOO world"
+        assert normalize_numbers("hello f o o world") == "hello FOO world"
+
+        fake_file.write_text('[hotwords]\nBAR = ["bar"]\n', encoding="utf-8")
+        assert normalize_numbers("hello bar world") == "hello BAR world"
+    finally:
+        hw._HOTWORDS_FILE = orig_file
+        hw._mtime = orig_mtime
+        hw._cache.clear()
+        hw._cache.update(orig_cache)
+        hw._re_hotwords = orig_re

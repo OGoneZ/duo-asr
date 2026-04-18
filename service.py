@@ -3,6 +3,7 @@ import torch
 from pathlib import Path
 from qwen_asr import Qwen3ASRModel
 from logger import setup_logger
+import hotwords
 
 logger = setup_logger(__name__)
 
@@ -115,6 +116,7 @@ def normalize_numbers(text: str) -> str:
     text = _RE_DOT_ALPHA.sub(r'.\1', text)                  # 点com → .com
     text = _RE_SPACE_L.sub(' ', text)
     text = _RE_SPACE_R.sub(' ', text)
+    text = hotwords.sub_hotwords(text)                       # 热词替换（可热插拔）
     return text
 
 

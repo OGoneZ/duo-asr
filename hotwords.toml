@@ -1,0 +1,14 @@
+# 热词词典：目标写法 = [错误变体1, 错误变体2, ...]
+# 变体匹配不区分大小写；编辑此文件后无需重启服务，下次请求自动生效
+
+[hotwords]
+FastAPI = ["fast api", "fastapi", "Fast Api"]
+OpenAI = ["open ai", "openai", "Open Ai"]
+LangChain = ["lang chain", "long chain"]
+LangGraph = ["lang graph", "long graph"]
+DSPy = ["dspy", "d s p y", "DSPY"]
+RAG = ["rag"]
+JSON = ["json"]
+YAML = ["yaml"]
+TOML = ["toml"]
+Coredump = ["core dump"]
