@@ -34,10 +34,9 @@ async def transcribe(file: UploadFile = File(...)):
         tmp_path = tmp.name
 
     try:
-        logger.info("开始转写...")
         text = service.transcribe(tmp_path)
         elapsed = time.time() - start_time
-        logger.info(f"转写完成, 耗时: {elapsed:.2f}秒, 结果: {text}")
+        logger.info(f"转写完成, 耗时: {elapsed:.2f}秒")
         return JSONResponse({"text": text})
     finally:
         os.unlink(tmp_path)

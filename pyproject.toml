@@ -11,3 +11,11 @@ dependencies = [
     "uvicorn>=0.44.0",
     "qwen-asr",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
