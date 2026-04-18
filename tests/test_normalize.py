@@ -93,6 +93,9 @@ def test_ip(text, expected):
     ("root艾特幺零点幺零点二零点三二",     "root@10.10.20.32"),
     ("root 艾特 一九二点一六八点一点一",   "root@192.168.1.1"),
     ("admin AT 一九二点一六八点一点一",    "admin@192.168.1.1"),
+    # at 右边无空格（中文 IP 直接相连）
+    ("lab at幺零点幺点幺点六",            "lab@10.1.1.6"),
+    ("ssh lab at幺零点幺点幺点六",        "ssh lab@10.1.1.6"),
 ])
 def test_at_sign(text, expected):
     assert normalize_numbers(text) == expected
@@ -117,4 +120,23 @@ def test_dot_alpha(text, expected):
     ("二零二五年开始",     "2025 年开始"),
 ])
 def test_spacing(text, expected):
+    assert normalize_numbers(text) == expected
+
+
+# ── 大写字母序列合并 ──────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("text, expected", [
+    ("S S H",                   "SSH"),
+    ("D S P Y",                 "DSPY"),
+    ("A P I",                   "API"),
+    ("通过 S S H 连接",          "通过 SSH 连接"),
+    ("使用 D S P Y 框架",        "使用 DSPY 框架"),
+    ("A I",                     "AI"),
+    ("U R L",                   "URL"),
+    # 单个字母不触发
+    ("I love it",               "I love it"),
+    # 已连写的不变
+    ("SSH",                     "SSH"),
+])
+def test_letter_seq(text, expected):
     assert normalize_numbers(text) == expected

@@ -66,8 +66,10 @@ _RE_DEC = re.compile(rf'{_DC}+点{_DC}+')
 _RE_TIME_LEAD = re.compile(rf'({_DC})(?=点{_DC}*{_UC})')
 # 连续数字字符（≥2 个），逐字转换，覆盖年份/电话/门牌/含幺序列
 _RE_SEQ = re.compile(rf'{_DC}{{2,}}')
+# 连续单个大写字母（S S H → SSH，D S P Y → DSPY）
+_RE_LETTER_SEQ = re.compile(r'(?<![A-Za-z])([A-Z])( [A-Z])+(?![A-Za-z])')
 # X at/艾特 Y → X@Y（email/地址中的 @ 读法）
-_RE_AT = re.compile(r'(\S+?)(?:\s+at\s+|\s*艾特\s*)(\S+)', re.IGNORECASE)
+_RE_AT = re.compile(r'(\S+?)(?:\s+at\s*|\s*艾特\s*)(\S+)', re.IGNORECASE)
 # 点 + 字母 → .字母（域名/邮箱后缀，如「点com」→「.com」）
 _RE_DOT_ALPHA = re.compile(r'点([a-zA-Z]+)')
 # 中文字符与阿拉伯数字之间插空格
@@ -108,6 +110,7 @@ def normalize_numbers(text: str) -> str:
     text = _RE_UNIT.sub(_sub_unit, text)                    # 含单位字的数字
     text = _RE_DEC.sub(_sub_dec, text)                      # 纯小数
     text = _RE_SEQ.sub(_sub_seq, text)                      # 连续数字序列
+    text = _RE_LETTER_SEQ.sub(lambda m: m.group().replace(' ', ''), text)  # S S H → SSH
     text = _RE_AT.sub(r'\1@\2', text)                       # at/艾特 → @
     text = _RE_DOT_ALPHA.sub(r'.\1', text)                  # 点com → .com
     text = _RE_SPACE_L.sub(' ', text)
