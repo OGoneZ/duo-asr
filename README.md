@@ -53,7 +53,7 @@ uv sync
 ## 启动服务
 
 ```bash
-uv run qwen_asr_api.py
+uv run main.py
 ```
 
 服务默认监听 `0.0.0.0:9999`。
