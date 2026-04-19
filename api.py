@@ -5,7 +5,7 @@ import os
 import time
 
 from logger import setup_logger
-import service
+import model
 
 logger = setup_logger(__name__)
 
@@ -36,7 +36,7 @@ async def transcribe(file: UploadFile = File(...)):
         tmp_path = tmp.name
 
     try:
-        text = service.transcribe(tmp_path)
+        text = model.transcribe(tmp_path)
         elapsed = time.time() - start_time
         logger.info(f"转写完成, 耗时: {elapsed:.2f}秒")
         return JSONResponse({"text": text})

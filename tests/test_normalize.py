@@ -1,5 +1,76 @@
+import importlib
+import shutil
+import sys
+from pathlib import Path
+
 import pytest
-from service import normalize_numbers
+import hot_reload
+import post_process
+from post_process import normalize_numbers
+
+
+@pytest.fixture(autouse=True)
+def reset_runtime_state():
+    sys.modules["post_process"] = post_process
+    sys.modules["hot_reload"] = hot_reload
+    importlib.reload(post_process)
+    importlib.reload(hot_reload)
+    yield
+    sys.modules["post_process"] = post_process
+    sys.modules["hot_reload"] = hot_reload
+    importlib.reload(post_process)
+    importlib.reload(hot_reload)
+
+
+@pytest.fixture
+def hotwords_file(tmp_path):
+    hotwords_path = Path(post_process._HOTWORDS_FILE)
+    backup_path = tmp_path / "hotwords.toml.bak"
+    had_original = hotwords_path.exists()
+    if had_original:
+        shutil.copy2(hotwords_path, backup_path)
+
+    yield hotwords_path
+
+    if had_original:
+        shutil.copy2(backup_path, hotwords_path)
+    elif hotwords_path.exists():
+        hotwords_path.unlink()
+    importlib.reload(post_process)
+    importlib.reload(hot_reload)
+
+
+@pytest.fixture
+def reloadable_modules(tmp_path):
+    module_dir = tmp_path / "reloadable"
+    module_dir.mkdir()
+    hotwords_path = module_dir / "hotwords.toml"
+    post_process_path = module_dir / "post_process.py"
+    hot_reload_path = module_dir / "hot_reload.py"
+
+    post_process_path.write_text(Path(post_process.__file__).read_text(encoding="utf-8"), encoding="utf-8")
+    hot_reload_path.write_text(Path(hot_reload.__file__).read_text(encoding="utf-8"), encoding="utf-8")
+    hotwords_path.write_text('[hotwords]\nFastAPI = ["fast api"]\n', encoding="utf-8")
+
+    sys.path.insert(0, str(module_dir))
+    try:
+        sys.modules.pop("post_process", None)
+        sys.modules.pop("hot_reload", None)
+        reloadable_post_process = importlib.import_module("post_process")
+        reloadable_hot_reload = importlib.import_module("hot_reload")
+        yield {
+            "module_dir": module_dir,
+            "post_process": reloadable_post_process,
+            "hot_reload": reloadable_hot_reload,
+            "post_process_path": post_process_path,
+            "hotwords_path": hotwords_path,
+        }
+    finally:
+        sys.modules.pop("post_process", None)
+        sys.modules.pop("hot_reload", None)
+        sys.path.remove(str(module_dir))
+        sys.modules["post_process"] = post_process
+        sys.modules["hot_reload"] = hot_reload
 
 
 # ── 含单位字的数字 ────────────────────────────────────────────────────────────
@@ -147,8 +218,6 @@ def test_letter_seq(text, expected):
 
 # ── 热词替换 ───────────────────────────────────────────────────────────────────
 
-import hotwords as _hotwords_module
-
 @pytest.mark.parametrize("text, expected", [
     ("用 fast api 构建服务",      "用 FastAPI 构建服务"),
     ("用 rag 做检索",            "用 RAG 做检索"),
@@ -161,32 +230,53 @@ def test_hotwords(text, expected):
     assert normalize_numbers(text) == expected
 
 
-def test_hotwords_hotswap(tmp_path):
-    import hotwords as hw
+def test_hotwords_hotswap(hotwords_file):
+    hotwords_file.write_text('[hotwords]\nFOO = ["foo"]\n', encoding="utf-8")
+    assert normalize_numbers("hello foo world") == "hello FOO world"
 
-    # 保存原状态
-    orig_file = hw._HOTWORDS_FILE
-    orig_mtime = hw._mtime
-    orig_cache = dict(hw._cache)
-    orig_re = hw._re_hotwords
+    hotwords_file.write_text('[hotwords]\nBAR = ["bar"]\n', encoding="utf-8")
+    assert normalize_numbers("hello foo world") == "hello foo world"
+    assert normalize_numbers("hello bar world") == "hello BAR world"
 
-    # 切换到临时文件
-    fake_file = tmp_path / "hotwords.toml"
-    hw._HOTWORDS_FILE = fake_file
-    hw._mtime = 0
-    hw._re_hotwords = None
-    hw._cache.clear()
 
-    try:
-        fake_file.write_text('[hotwords]\nFOO = ["foo", "f o o"]\n', encoding="utf-8")
-        assert normalize_numbers("hello foo world") == "hello FOO world"
-        assert normalize_numbers("hello f o o world") == "hello FOO world"
+def test_hotwords_removed_unloads_dictionary(hotwords_file):
+    hotwords_file.write_text('[hotwords]\nFOO = ["foo"]\n', encoding="utf-8")
+    assert normalize_numbers("hello foo world") == "hello FOO world"
 
-        fake_file.write_text('[hotwords]\nBAR = ["bar"]\n', encoding="utf-8")
-        assert normalize_numbers("hello bar world") == "hello BAR world"
-    finally:
-        hw._HOTWORDS_FILE = orig_file
-        hw._mtime = orig_mtime
-        hw._cache.clear()
-        hw._cache.update(orig_cache)
-        hw._re_hotwords = orig_re
+    hotwords_file.unlink()
+    assert normalize_numbers("hello foo world") == "hello foo world"
+
+
+def test_hotwords_invalid_keeps_last_good(hotwords_file):
+    hotwords_file.write_text('[hotwords]\nFOO = ["foo"]\n', encoding="utf-8")
+    assert normalize_numbers("hello foo world") == "hello FOO world"
+
+    hotwords_file.write_text('[hotwords\nBROKEN = ["bar"]\n', encoding="utf-8")
+    assert normalize_numbers("hello foo world") == "hello FOO world"
+    assert normalize_numbers("hello bar world") == "hello bar world"
+
+
+def test_post_process_code_hotreload_uses_new_logic(reloadable_modules):
+    reloadable_hot_reload = reloadable_modules["hot_reload"]
+    post_process_path = reloadable_modules["post_process_path"]
+
+    assert reloadable_hot_reload.normalize_numbers("三十二度") == "32 度"
+
+    source = post_process_path.read_text(encoding="utf-8")
+    old = "return _sub_hotwords(text)"
+    new = 'return f"[patched]{_sub_hotwords(text)}"'
+    assert old in source
+    post_process_path.write_text(source.replace(old, new, 1), encoding="utf-8")
+
+    assert reloadable_hot_reload.normalize_numbers("三十二度") == "[patched]32 度"
+
+
+def test_post_process_code_hotreload_keeps_last_good_on_error(reloadable_modules):
+    reloadable_hot_reload = reloadable_modules["hot_reload"]
+    post_process_path = reloadable_modules["post_process_path"]
+
+    assert reloadable_hot_reload.normalize_numbers("三十二度") == "32 度"
+
+    post_process_path.write_text("def normalize_numbers(:\n", encoding="utf-8")
+
+    assert reloadable_hot_reload.normalize_numbers("三十二度") == "32 度"
