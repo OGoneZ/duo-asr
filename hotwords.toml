@@ -31,13 +31,10 @@ JSON = ["json"]
 YAML = ["yaml"]
 TOML = ["toml"]
 Coredump = ["core dump"]
+lejurobot = ["乐聚 robot", "乐居 robot", "乐聚robot", "乐居robot"]
+lejuhub = ["乐聚 hub", "乐居 hub", "乐聚hub", "乐居hub"]
 
 [hotwords.zhubaoduo]
 variants = ["珠宝多"]
 phonetic = true
 pinyin = ["zhubaoduo"]
-
-[hotwords.leju]
-variants = ["乐居", "乐聚"]
-phonetic = true
-pinyin = ["leju"]

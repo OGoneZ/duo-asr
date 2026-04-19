@@ -125,7 +125,7 @@ def _load_hotwords() -> None:
         hotwords, hotwords_regex, phonetic_map, phonetic_lengths = _build_hotword_state(data.get(_HOTWORD_SECTION, {}))
     except Exception:
         # 解析失败时保留上一版，避免编辑过程中的中间态打断请求。
-        logger.exception("热词词典加载失败，继续使用上一版本")
+        logger.exception("热词词典加载失败，继续使用上一版本: path=%s, mtime_ns=%s", _HOTWORDS_FILE, current_mtime_ns)
         _hotwords_mtime_ns = current_mtime_ns
         return
 

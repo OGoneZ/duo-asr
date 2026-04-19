@@ -255,7 +255,7 @@ def test_phonetic_hotwords(text, expected):
 def test_phonetic_hotwords_no_false_positive():
     assert normalize_numbers("珠宝") == "珠宝"
     assert normalize_numbers("宝夺") == "宝夺"
-    assert normalize_numbers("乐居") == "leju"
+    assert normalize_numbers("乐居") == "乐居"
     assert normalize_numbers("robot") == "robot"
 
 
