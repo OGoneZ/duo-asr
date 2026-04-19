@@ -1,5 +1,24 @@
-# 热词词典：目标写法 = [错误变体1, 错误变体2, ...]
-# 变体匹配不区分大小写；编辑此文件后无需重启服务，下次请求自动生效
+# 热词词典：
+# 1. 简写形式：目标写法 = [错误变体1, 错误变体2, ...]
+#    适用于普通精确匹配，变体匹配不区分大小写。
+#
+# 2. 表格形式：[hotwords.<target>]
+#    variants = ["错误变体1", "错误变体2"]
+#      - 精确匹配用的显式别名列表
+#    phonetic = true/false
+#      - 是否启用按发音匹配
+#    pinyin = ["zhuabaoduo"]
+#      - 可选，手工指定拼音 key；适合多音字或需要覆盖默认拼音的场景
+#
+# 表格形式适合 ASR 同音误识别纠正。
+# 例如把「珠宝多」「珠宝夺」统一替换成 zhubaoduo：
+#
+# [hotwords.zhubaoduo]
+# variants = ["珠宝多"]
+# phonetic = true
+# pinyin = ["zhubaoduo"]
+#
+# 编辑此文件后无需重启服务，下次请求自动生效。
 
 [hotwords]
 FastAPI = ["fast api", "fastapi", "Fast Api"]
@@ -12,3 +31,13 @@ JSON = ["json"]
 YAML = ["yaml"]
 TOML = ["toml"]
 Coredump = ["core dump"]
+
+[hotwords.zhubaoduo]
+variants = ["珠宝多"]
+phonetic = true
+pinyin = ["zhubaoduo"]
+
+[hotwords.leju]
+variants = ["乐居", "乐聚"]
+phonetic = true
+pinyin = ["leju"]

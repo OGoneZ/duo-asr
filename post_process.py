@@ -2,28 +2,109 @@ import re
 import tomllib
 from pathlib import Path
 
+from pypinyin import Style, lazy_pinyin
+
 from logger import setup_logger
 
 logger = setup_logger(__name__)
 
 # ── 热词 ──────────────────────────────────────────────────────────────────────
 
+_HOTWORD_SECTION = "hotwords"
 _HOTWORDS_FILE = Path(__file__).parent / "hotwords.toml"
 _hotwords_cache: dict[str, list[str]] = {}
 _hotwords_mtime_ns: int | None = None
 _re_hotwords: re.Pattern[str] | None = None
+_phonetic_map: dict[int, dict[str, str]] = {}
+_phonetic_lengths: tuple[int, ...] = ()
+
+
+def _to_pinyin_key(text: str) -> str:
+    return "".join(lazy_pinyin(text, style=Style.NORMAL, errors="ignore"))
+
+
+def _contains_cjk(text: str) -> bool:
+    return any("\u4e00" <= ch <= "\u9fff" for ch in text)
+
+
+def _normalize_hotwords_config(raw_hotwords: dict) -> list[dict[str, object]]:
+    normalized: list[dict[str, object]] = []
+
+    for target, config in raw_hotwords.items():
+        if isinstance(config, list):
+            normalized.append({
+                "target": target,
+                "variants": config,
+                "phonetic": False,
+                "pinyin": [],
+            })
+            continue
+
+        if not isinstance(config, dict):
+            raise TypeError(f"hotword {target!r} must be a list or table")
+
+        variants = config.get("variants", [])
+        if not isinstance(variants, list):
+            raise TypeError(f"hotword {target!r}.variants must be a list")
+
+        pinyin_values = config.get("pinyin", [])
+        if not isinstance(pinyin_values, list):
+            raise TypeError(f"hotword {target!r}.pinyin must be a list")
+
+        normalized.append({
+            "target": target,
+            "variants": variants,
+            "phonetic": bool(config.get("phonetic", False)),
+            "pinyin": pinyin_values,
+        })
+
+    return normalized
 
 
 def _compile_hotwords(hotwords: dict[str, list[str]]) -> re.Pattern[str] | None:
     all_variants = [variant for variants in hotwords.values() for variant in variants]
     if not all_variants:
         return None
+    all_variants.sort(key=len, reverse=True)
     pattern = "|".join(re.escape(variant) for variant in all_variants)
     return re.compile(pattern, re.IGNORECASE)
 
 
+def _build_hotword_state(raw_hotwords: dict) -> tuple[dict[str, list[str]], re.Pattern[str] | None, dict[int, dict[str, str]], tuple[int, ...]]:
+    exact_hotwords: dict[str, list[str]] = {}
+    phonetic_map: dict[int, dict[str, str]] = {}
+
+    for entry in _normalize_hotwords_config(raw_hotwords):
+        target = entry["target"]
+        variants = entry["variants"]
+        phonetic_enabled = entry["phonetic"]
+        pinyin_values = entry["pinyin"]
+
+        if variants:
+            exact_hotwords[target] = variants
+
+        if not phonetic_enabled:
+            continue
+
+        phonetic_keys = set(pinyin_values)
+        phonetic_lengths: set[int] = set()
+        for variant in variants:
+            if _contains_cjk(variant):
+                phonetic_lengths.add(len(variant))
+                phonetic_keys.add(_to_pinyin_key(variant))
+
+        for phonetic_len in phonetic_lengths:
+            phonetic_bucket = phonetic_map.setdefault(phonetic_len, {})
+            for phonetic_key in phonetic_keys:
+                if phonetic_key:
+                    phonetic_bucket[phonetic_key] = target
+
+    phonetic_lengths = tuple(sorted(phonetic_map.keys(), reverse=True))
+    return exact_hotwords, _compile_hotwords(exact_hotwords), phonetic_map, phonetic_lengths
+
+
 def _load_hotwords() -> None:
-    global _hotwords_cache, _hotwords_mtime_ns, _re_hotwords
+    global _hotwords_cache, _hotwords_mtime_ns, _re_hotwords, _phonetic_map, _phonetic_lengths
 
     try:
         current_mtime_ns = _HOTWORDS_FILE.stat().st_mtime_ns
@@ -31,6 +112,8 @@ def _load_hotwords() -> None:
         # 词典被移除时立即卸载热词替换能力。
         _hotwords_cache = {}
         _re_hotwords = None
+        _phonetic_map = {}
+        _phonetic_lengths = ()
         _hotwords_mtime_ns = None
         return
 
@@ -39,8 +122,7 @@ def _load_hotwords() -> None:
 
     try:
         data = tomllib.loads(_HOTWORDS_FILE.read_text(encoding="utf-8"))
-        hotwords = data.get("hotwords", {})
-        hotwords_regex = _compile_hotwords(hotwords)
+        hotwords, hotwords_regex, phonetic_map, phonetic_lengths = _build_hotword_state(data.get(_HOTWORD_SECTION, {}))
     except Exception:
         # 解析失败时保留上一版，避免编辑过程中的中间态打断请求。
         logger.exception("热词词典加载失败，继续使用上一版本")
@@ -49,14 +131,49 @@ def _load_hotwords() -> None:
 
     _hotwords_cache = hotwords
     _re_hotwords = hotwords_regex
+    _phonetic_map = phonetic_map
+    _phonetic_lengths = phonetic_lengths
     _hotwords_mtime_ns = current_mtime_ns
 
 
 def _sub_hotwords(text: str) -> str:
     _load_hotwords()
-    if not _re_hotwords:
+    if _re_hotwords:
+        text = _re_hotwords.sub(lambda match: _lookup(match.group()), text)
+    return _sub_hotwords_phonetic(text)
+
+
+def _sub_hotwords_phonetic(text: str) -> str:
+    if not _phonetic_lengths:
         return text
-    return _re_hotwords.sub(lambda match: _lookup(match.group()), text)
+
+    chars = list(text)
+    result: list[str] = []
+    index = 0
+
+    while index < len(chars):
+        matched = False
+        for length in _phonetic_lengths:
+            end = index + length
+            if end > len(chars):
+                continue
+
+            candidate = "".join(chars[index:end])
+            if not _contains_cjk(candidate):
+                continue
+
+            target = _phonetic_map.get(length, {}).get(_to_pinyin_key(candidate))
+            if target:
+                result.append(target)
+                index = end
+                matched = True
+                break
+
+        if not matched:
+            result.append(chars[index])
+            index += 1
+
+    return "".join(result)
 
 
 def _lookup(variant: str) -> str:
@@ -137,8 +254,8 @@ _RE_SEQ = re.compile(rf"{_DC}{{2,}}")
 _RE_LETTER_SEQ = re.compile(r"(?<![A-Za-z])([A-Z])( [A-Z])+(?![A-Za-z])")
 # X at/艾特 Y → X@Y（email/地址中的 @ 读法）。
 _RE_AT = re.compile(r"(\S+?)(?:\s*at\s*|\s*艾特\s*)(\S+)", re.IGNORECASE)
-# 点 + 字母 → .字母（域名/邮箱后缀，如「点com」→「.com」）。
-_RE_DOT_ALPHA = re.compile(r"点([a-zA-Z]+)")
+# 点 + 字母 → .字母（域名/邮箱后缀，如「点com」/「点 com」→「.com」）。
+_RE_DOT_ALPHA = re.compile(r"\s*点\s*([a-zA-Z]+)")
 # 中文字符与阿拉伯数字之间插空格。
 _RE_SPACE_L = re.compile(r"(?<=[^\x00-\x7F\s])(?=\d)")
 _RE_SPACE_R = re.compile(r"(?<=\d)(?=[^\x00-\x7F\s])")

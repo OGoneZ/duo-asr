@@ -1,4 +1,5 @@
 import importlib
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -7,6 +8,16 @@ import pytest
 import hot_reload
 import post_process
 from post_process import normalize_numbers
+
+_ORIGINAL_HOTWORDS_PATH = Path(post_process._HOTWORDS_FILE)
+_ORIGINAL_HOTWORDS_TEXT = _ORIGINAL_HOTWORDS_PATH.read_text(encoding="utf-8")
+
+
+def _write_with_new_mtime(path: Path, content: str) -> None:
+    current_mtime_ns = path.stat().st_mtime_ns if path.exists() else 0
+    next_mtime_ns = max(current_mtime_ns + 1_000_000, int(Path.cwd().stat().st_mtime_ns))
+    path.write_text(content, encoding="utf-8")
+    os.utime(path, ns=(next_mtime_ns, next_mtime_ns))
 
 
 @pytest.fixture(autouse=True)
@@ -26,16 +37,11 @@ def reset_runtime_state():
 def hotwords_file(tmp_path):
     hotwords_path = Path(post_process._HOTWORDS_FILE)
     backup_path = tmp_path / "hotwords.toml.bak"
-    had_original = hotwords_path.exists()
-    if had_original:
-        shutil.copy2(hotwords_path, backup_path)
+    backup_path.write_text(_ORIGINAL_HOTWORDS_TEXT, encoding="utf-8")
 
     yield hotwords_path
 
-    if had_original:
-        shutil.copy2(backup_path, hotwords_path)
-    elif hotwords_path.exists():
-        hotwords_path.unlink()
+    _write_with_new_mtime(hotwords_path, backup_path.read_text(encoding="utf-8"))
     importlib.reload(post_process)
     importlib.reload(hot_reload)
 
@@ -169,7 +175,7 @@ def test_ip(text, expected):
     ("ssh lab at幺零点幺点幺点六",        "ssh lab@10.1.1.6"),
     # at 前后均无空格（多at六六点六六点一点二 → 多@66.66.1.2）
     ("多at六六点六六点一点二",            "多@66.66.1.2"),
-    ("珠宝多at六六点六六点一点二",        "珠宝多@66.66.1.2"),
+    ("珠宝多at六六点六六点一点二",        "zhubaoduo@66.66.1.2"),
 ])
 def test_at_sign(text, expected):
     assert normalize_numbers(text) == expected
@@ -179,8 +185,10 @@ def test_at_sign(text, expected):
 
 @pytest.mark.parametrize("text, expected", [
     ("example点com",                        "example.com"),
+    ("example点 com",                       "example.com"),
     ("www点example点com",                   "www.example.com"),
     ("user艾特example点com",                "user@example.com"),
+    ("user艾特example点 com",               "user@example.com"),
     ("admin at 幺九二点一六八点一点一点cn",  "admin@192.168.1.1.cn"),
 ])
 def test_dot_alpha(text, expected):
@@ -230,17 +238,40 @@ def test_hotwords(text, expected):
     assert normalize_numbers(text) == expected
 
 
+# ── 热词按发音匹配 ─────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("text, expected", [
+    ("珠宝多", "zhubaoduo"),
+    ("珠宝夺", "zhubaoduo"),
+    ("我叫珠宝多", "我叫zhubaoduo"),
+    ("我叫珠宝夺", "我叫zhubaoduo"),
+])
+def test_phonetic_hotwords(text, expected):
+    assert normalize_numbers(text) == expected
+
+
+# ── 热词按发音匹配不误伤 ───────────────────────────────────────────────────────
+
+def test_phonetic_hotwords_no_false_positive():
+    assert normalize_numbers("珠宝") == "珠宝"
+    assert normalize_numbers("宝夺") == "宝夺"
+    assert normalize_numbers("乐居") == "leju"
+    assert normalize_numbers("robot") == "robot"
+
+
+# ── 热词热更新 ─────────────────────────────────────────────────────────────────
+
 def test_hotwords_hotswap(hotwords_file):
-    hotwords_file.write_text('[hotwords]\nFOO = ["foo"]\n', encoding="utf-8")
+    _write_with_new_mtime(hotwords_file, '[hotwords]\nFOO = ["foo"]\n')
     assert normalize_numbers("hello foo world") == "hello FOO world"
 
-    hotwords_file.write_text('[hotwords]\nBAR = ["bar"]\n', encoding="utf-8")
+    _write_with_new_mtime(hotwords_file, '[hotwords]\nBAR = ["bar"]\n')
     assert normalize_numbers("hello foo world") == "hello foo world"
     assert normalize_numbers("hello bar world") == "hello BAR world"
 
 
 def test_hotwords_removed_unloads_dictionary(hotwords_file):
-    hotwords_file.write_text('[hotwords]\nFOO = ["foo"]\n', encoding="utf-8")
+    _write_with_new_mtime(hotwords_file, '[hotwords]\nFOO = ["foo"]\n')
     assert normalize_numbers("hello foo world") == "hello FOO world"
 
     hotwords_file.unlink()
@@ -248,13 +279,33 @@ def test_hotwords_removed_unloads_dictionary(hotwords_file):
 
 
 def test_hotwords_invalid_keeps_last_good(hotwords_file):
-    hotwords_file.write_text('[hotwords]\nFOO = ["foo"]\n', encoding="utf-8")
+    _write_with_new_mtime(hotwords_file, '[hotwords]\nFOO = ["foo"]\n')
     assert normalize_numbers("hello foo world") == "hello FOO world"
 
-    hotwords_file.write_text('[hotwords\nBROKEN = ["bar"]\n', encoding="utf-8")
+    _write_with_new_mtime(hotwords_file, '[hotwords\nBROKEN = ["bar"]\n')
     assert normalize_numbers("hello foo world") == "hello FOO world"
     assert normalize_numbers("hello bar world") == "hello bar world"
 
+
+# ── 热词按发音匹配热更新 ───────────────────────────────────────────────────────
+
+def test_hotwords_phonetic_hotswap(hotwords_file):
+    _write_with_new_mtime(
+        hotwords_file,
+        '[hotwords.foo]\nvariants = ["福"]\nphonetic = true\npinyin = ["fu"]\n',
+    )
+    assert normalize_numbers("福") == "foo"
+    assert normalize_numbers("夫") == "foo"
+
+    _write_with_new_mtime(
+        hotwords_file,
+        '[hotwords.bar]\nvariants = ["巴"]\nphonetic = true\npinyin = ["ba"]\n',
+    )
+    assert normalize_numbers("福") == "福"
+    assert normalize_numbers("八") == "bar"
+
+
+# ── 后处理代码热更新 ───────────────────────────────────────────────────────────
 
 def test_post_process_code_hotreload_uses_new_logic(reloadable_modules):
     reloadable_hot_reload = reloadable_modules["hot_reload"]
@@ -263,13 +314,15 @@ def test_post_process_code_hotreload_uses_new_logic(reloadable_modules):
     assert reloadable_hot_reload.normalize_numbers("三十二度") == "32 度"
 
     source = post_process_path.read_text(encoding="utf-8")
-    old = "return _sub_hotwords(text)"
-    new = 'return f"[patched]{_sub_hotwords(text)}"'
+    old = '    text = _RE_SPACE_R.sub(" ", text)\n    return _sub_hotwords(text)  # 热词替换（可热更新）\n'
+    new = '    text = _RE_SPACE_R.sub(" ", text)\n    return f"[patched]{_sub_hotwords(text)}"\n'
     assert old in source
-    post_process_path.write_text(source.replace(old, new, 1), encoding="utf-8")
+    _write_with_new_mtime(post_process_path, source.replace(old, new, 1))
 
     assert reloadable_hot_reload.normalize_numbers("三十二度") == "[patched]32 度"
 
+
+# ── 后处理代码热更新失败回退 ───────────────────────────────────────────────────
 
 def test_post_process_code_hotreload_keeps_last_good_on_error(reloadable_modules):
     reloadable_hot_reload = reloadable_modules["hot_reload"]
@@ -277,6 +330,6 @@ def test_post_process_code_hotreload_keeps_last_good_on_error(reloadable_modules
 
     assert reloadable_hot_reload.normalize_numbers("三十二度") == "32 度"
 
-    post_process_path.write_text("def normalize_numbers(:\n", encoding="utf-8")
+    _write_with_new_mtime(post_process_path, "def normalize_numbers(:\n")
 
     assert reloadable_hot_reload.normalize_numbers("三十二度") == "32 度"
