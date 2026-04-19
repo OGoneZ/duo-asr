@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, Request
 from fastapi.responses import JSONResponse
 import tempfile
@@ -9,7 +10,15 @@ import model
 
 logger = setup_logger(__name__)
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 服务启动时预加载模型，避免首条语音请求触发冷启动。
+    model.load_model()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 # 只允许 66.66.66.0/24 网段和本地访问
 @app.middleware("http")
