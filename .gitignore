@@ -11,5 +11,3 @@ wheels/
 
 models
 logs
-certs/*.crt
-certs/*.key
