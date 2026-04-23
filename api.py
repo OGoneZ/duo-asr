@@ -36,6 +36,10 @@ def _request_label(request: Request) -> str:
     return f"{request.method} {request.url.path}"
 
 
+def _is_allowed_client_ip(client_ip: str) -> bool:
+    return client_ip in {"127.0.0.1", "::1"} or client_ip.startswith("10.0.0.")
+
+
 @app.exception_handler(ASRServerError)
 async def handle_service_error(request: Request, exc: ASRServerError):
     status_code = 503 if isinstance(exc, ModelLoadError) else 500
@@ -60,13 +64,12 @@ async def handle_unexpected_error(request: Request, exc: Exception):
     logger.exception("未处理异常: %s", _request_label(request))
     return JSONResponse({"error": "Internal server error"}, status_code=500)
 
-# 只允许 66.66.66.0/24 网段和本地访问
+# 只允许 10.0.0.0/24 网段和本地访问
 @app.middleware("http")
 async def restrict_ip(request: Request, call_next):
     client_ip = request.client.host
     logger.info(f"请求来源 IP: {client_ip}")
-    allowed = client_ip == "127.0.0.1" or client_ip == "::1" or client_ip.startswith("66.66.66.")
-    if not allowed:
+    if not _is_allowed_client_ip(client_ip):
         logger.warning(f"拒绝非授权网段访问: {client_ip}")
         return JSONResponse({"error": "Forbidden"}, status_code=403)
     return await call_next(request)

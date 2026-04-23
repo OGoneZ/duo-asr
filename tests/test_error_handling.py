@@ -106,3 +106,13 @@ def test_transcribe_wraps_post_process_failure(monkeypatch):
 
     with pytest.raises(PostProcessError, match="后处理失败"):
         model.transcribe("demo.wav")
+
+
+@pytest.mark.parametrize(("client_ip", "allowed"), [
+    ("127.0.0.1", True),
+    ("::1", True),
+    ("10.0.0.4", True),
+    ("10.0.1.4", False),
+])
+def test_allowed_client_ip_ranges(client_ip, allowed):
+    assert api._is_allowed_client_ip(client_ip) is allowed

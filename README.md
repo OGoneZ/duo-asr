@@ -1,12 +1,12 @@
 # ASR Server
 
-基于 Qwen3-ASR-1.7B 的语音识别 HTTP 服务，兼容 OpenAI `/v1/audio/transcriptions` 接口格式，并内置中文数字后处理（将中文数字转换为阿拉伯数字）。
+基于 Qwen3-ASR-1.7B 的语音识别 HTTPS 服务，兼容 OpenAI `/v1/audio/transcriptions` 接口格式，并内置中文数字后处理（将中文数字转换为阿拉伯数字）。
 
 ## 功能特性
 
 - **语音识别**：使用 Qwen3-ASR-1.7B 模型，支持中英文混合识别
 - **中文数字后处理**：自动将识别结果中的中文数字转换为阿拉伯数字
-- **IP 白名单**：仅允许 `127.0.0.1`、`::1` 及 `66.66.66.0/24` 网段访问
+- **IP 白名单**：仅允许 `127.0.0.1`、`::1` 及 `10.0.0.0/24` 网段访问
 - **日志归档**：按月分目录、按天分文件，路径格式为 `logs/YYYY-MM/YYYY-MM-DD.log`
 
 ## 中文数字后处理规则
@@ -56,7 +56,29 @@ uv sync
 uv run main.py
 ```
 
-服务默认监听 `0.0.0.0:9999`。
+服务默认监听 `0.0.0.0:9999`，并使用 `certs/localhost.crt` / `certs/localhost.key` 提供 HTTPS。
+若本地证书不存在，启动时会通过 `openssl` 自动生成一对自签名证书。
+
+可选环境变量：
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `ASR_HOST` | `0.0.0.0` | 监听地址 |
+| `ASR_PORT` | `9999` | 监听端口 |
+| `ASR_SSL_ENABLED` | `1` | 设为 `0` 可回退到 HTTP |
+| `ASR_SSL_CERTFILE` | `certs/localhost.crt` | 自定义证书路径 |
+| `ASR_SSL_KEYFILE` | `certs/localhost.key` | 自定义私钥路径 |
+| `ASR_SSL_HOSTS` | `localhost,127.0.0.1` | 写入证书 SAN 的域名/IP，逗号分隔 |
+| `ASR_SSL_FORCE_REGENERATE` | `0` | 设为 `1` 时即使证书已存在也重新生成 |
+| `ASR_SSL_DAYS` | `3650` | 自签证书有效期（天） |
+
+如果客户端通过局域网 IP 访问，例如 `https://10.0.0.4:9999`，证书里必须包含这个 IP，否则会报证书主机名不匹配。可这样重建证书：
+
+```bash
+ASR_SSL_HOSTS=localhost,127.0.0.1,10.0.0.4 ASR_SSL_FORCE_REGENERATE=1 uv run main.py
+```
+
+首次启动完成后，把 `certs/localhost.crt` 导入客户端系统并设为信任，否则自签名证书仍会被系统拦截。
 
 ## API
 
@@ -83,7 +105,7 @@ Content-Type: multipart/form-data
 **示例**
 
 ```bash
-curl -X POST http://localhost:9999/v1/audio/transcriptions \
+curl -k -X POST https://localhost:9999/v1/audio/transcriptions \
   -F "file=@audio.wav"
 ```
 
@@ -91,8 +113,12 @@ curl -X POST http://localhost:9999/v1/audio/transcriptions \
 
 健康检查。
 
+```bash
+curl -k https://localhost:9999/health
+```
+
 ```json
-{ "status": "ok" }
+{"status": "ok"}
 ```
 
 ## 运行测试
