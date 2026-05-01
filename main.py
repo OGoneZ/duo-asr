@@ -1,20 +1,11 @@
-import os
-
 import uvicorn
 
+import config
 from api import app
 
 
-def get_uvicorn_config() -> dict[str, object]:
-    return {
-        "host": os.getenv("ASR_HOST", "0.0.0.0"),
-        "port": int(os.getenv("ASR_PORT", "9999")),
-        "access_log": False,
-    }
-
-
 def main() -> None:
-    uvicorn.run(app, **get_uvicorn_config())
+    uvicorn.run(app, host=config.HOST, port=config.PORT, access_log=False)
 
 
 if __name__ == "__main__":

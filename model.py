@@ -1,13 +1,11 @@
-import torch
-from pathlib import Path
 from qwen_asr import Qwen3ASRModel
+
+import config
 import hot_reload
 from errors import ModelLoadError, PostProcessError, TranscriptionError
 from logger import setup_logger
 
 logger = setup_logger(__name__)
-
-MODEL_PATH = Path(__file__).parent / "models" / "Qwen3-ASR-1.7B"
 
 _model = None
 
@@ -15,16 +13,19 @@ _model = None
 def load_model():
     global _model
     if _model is None:
-        logger.info(f"正在加载模型: {MODEL_PATH}")
+        logger.info(
+            f"正在加载模型: {config.MODEL_PATH} "
+            f"(device={config.DEVICE}, dtype={config.DTYPE})"
+        )
         try:
             _model = Qwen3ASRModel.from_pretrained(
-                str(MODEL_PATH),
-                dtype=torch.bfloat16,
-                device_map="auto"
+                str(config.MODEL_PATH),
+                dtype=config.DTYPE,
+                device_map={"": config.DEVICE},
             )
         except Exception as exc:
-            logger.exception("模型加载失败: %s", MODEL_PATH)
-            raise ModelLoadError(f"模型加载失败: {MODEL_PATH}") from exc
+            logger.exception("模型加载失败: %s", config.MODEL_PATH)
+            raise ModelLoadError(f"模型加载失败: {config.MODEL_PATH}") from exc
         logger.info("模型加载完成!")
     return _model
 

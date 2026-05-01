@@ -8,6 +8,7 @@ import tempfile
 import os
 import time
 
+import config
 from errors import ASRServerError, ModelLoadError
 from logger import setup_logger
 import model
@@ -42,7 +43,9 @@ def _request_label(request: Request) -> str:
 
 
 def _is_allowed_client_ip(client_ip: str) -> bool:
-    return client_ip in {"127.0.0.1", "::1"} or client_ip.startswith("10.0.0.")
+    if client_ip in config.ALLOWED_IPS:
+        return True
+    return any(client_ip.startswith(prefix) for prefix in config.ALLOWED_IP_PREFIXES)
 
 
 def _get_real_client_ip(request: Request) -> str:

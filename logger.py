@@ -2,16 +2,19 @@ import logging
 from pathlib import Path
 from datetime import datetime
 
+import config
+
 
 class DailyLogHandler(logging.Handler):
     """
     动态日志 handler，按月分目录，每天一个日志文件。
-    日志文件路径: logs/YYYY-MM/YYYY-MM-DD.log
+    日志文件路径: <log_dir>/YYYY-MM/YYYY-MM-DD.log
     """
 
-    def __init__(self, log_dir: Path):
+    def __init__(self, log_dir: Path, level: int):
         super().__init__()
         self.log_dir = log_dir
+        self.file_level = level
         self.last_date = None
         self.handler = None
 
@@ -28,7 +31,7 @@ class DailyLogHandler(logging.Handler):
             log_file = month_dir / f"{today}.log"
 
             self.handler = logging.FileHandler(log_file, encoding="utf-8")
-            self.handler.setLevel(logging.INFO)
+            self.handler.setLevel(self.file_level)
             self.handler.setFormatter(logging.Formatter(
                 "%(asctime)s %(levelname)s %(message)s",
                 datefmt="%Y-%m-%d %H:%M:%S"
@@ -44,7 +47,7 @@ def setup_logger(name: str = None):
     """
     设置日志，同时输出到控制台和按月分目录的日志文件。
     """
-    log_dir = Path(__file__).parent / "logs"
+    level = logging.getLevelNamesMapping().get(config.LOG_LEVEL, logging.INFO)
 
     # 清理 root handlers
     for handler in logging.root.handlers[:]:
@@ -57,18 +60,18 @@ def setup_logger(name: str = None):
 
     # 控制台 handler
     console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
+    console.setLevel(level)
     console.setFormatter(logging.Formatter(
         "%(asctime)s %(levelname)s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S"
     ))
 
     # 动态文件 handler
-    file_handler = DailyLogHandler(log_dir)
+    file_handler = DailyLogHandler(config.LOG_DIR, level)
 
     logger.addHandler(console)
     logger.addHandler(file_handler)
     logger.propagate = False
-    logger.setLevel(logging.INFO)
+    logger.setLevel(level)
 
     return logger
