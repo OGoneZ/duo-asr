@@ -12,7 +12,9 @@ const fmtDuration = (sec) => {
 const fmtTime = (iso) => {
   if (!iso) return "—";
   const d = new Date(iso);
-  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${hh}:${mm}`;
 };
 
 const fmtSeconds = (ms) => {
@@ -290,22 +292,30 @@ function appendHistoryItems(items) {
   }
   for (const item of items) {
     const li = document.createElement("li");
-    li.className = "recent-item";
+    li.className = "recent-item" + (item.error ? " has-error" : "");
     li.dataset.id = item.id;
 
-    const errorTag = item.error ? '<span class="error-tag">失败</span>' : "";
-    const durStr = item.audio_duration ? `${item.audio_duration.toFixed(1)}s` : "—";
     const previewText = item.text_final || item.error || "(空)";
+    const durLabel = item.audio_duration ? `${item.audio_duration.toFixed(1)}s` : "—";
+    const clientLabel = item.client_host || item.client_ip || "unknown";
 
     li.innerHTML = `
-      <div class="recent-line">
-        <span class="recent-time">${fmtTime(item.created_at)}</span>
-        <span class="recent-text">${escape(previewText)}${errorTag}</span>
-        <span class="recent-meta">${item.char_count || 0} 字 · ${durStr} · ${fmtSeconds(item.inference_ms)}</span>
+      <div class="recent-head">
+        <div class="recent-meta-line">
+          <span class="recent-date">${fmtTime(item.created_at)}</span>
+          <span class="recent-client">${escape(clientLabel)}</span>
+          ${item.error ? '<span class="error-tag">失败</span>' : ""}
+        </div>
+        <span class="recent-duration">${durLabel}</span>
       </div>
+      <div class="recent-text">${escape(previewText)}</div>
       <div class="recent-detail"></div>
     `;
-    li.addEventListener("click", () => toggleDetail(li, item));
+    li.addEventListener("click", (e) => {
+      // 点 audio / copy 按钮时不要折叠
+      if (e.target.closest("audio, .btn-copy")) return;
+      toggleDetail(li, item);
+    });
     ul.appendChild(li);
   }
 }
@@ -320,28 +330,83 @@ function toggleDetail(li, item) {
   if (detailEl.dataset.loaded === "1") return;
 
   const sameRaw = item.text_raw === item.text_final;
-  const rawHtml = item.text_raw
-    ? `<div class="diff-label">原始转录</div><div class="diff-block">${escape(item.text_raw)}</div>`
-    : "";
-  const finalHtml = item.text_final && !sameRaw
-    ? `<div class="diff-label">后处理后</div><div class="diff-block">${escape(item.text_final)}</div>`
-    : "";
-  const errorHtml = item.error
-    ? `<div class="diff-label">错误</div><div class="diff-block">${escape(item.error)}</div>`
-    : "";
-  const audioHtml = item.error
-    ? ""
-    : `<div class="diff-label">原始音频</div>
-       <audio controls preload="none" src="/api/recordings/${item.id}/audio"></audio>`;
-  const meta = `
-    <div class="diff-label">
-      ${escape(item.client_host || "")}${item.client_ip ? ` (${escape(item.client_ip)})` : ""}
-      · ${item.keystroke_count || 0} 次击键
-    </div>
-  `;
+  let html = "";
 
-  detailEl.innerHTML = rawHtml + finalHtml + errorHtml + audioHtml + meta;
+  if (item.error) {
+    html += `
+      <div class="detail-section">
+        <div class="detail-section-head">
+          <span class="detail-label">错误信息</span>
+        </div>
+        <div class="detail-text-raw">${escape(item.error)}</div>
+      </div>`;
+  } else {
+    if (item.text_final) {
+      html += `
+        <div class="detail-section">
+          <div class="detail-section-head">
+            <span class="detail-label">${sameRaw ? "转录文本" : "后处理后"}</span>
+            <button class="btn-copy" data-copy="final">⧉ 复制</button>
+          </div>
+          <div class="detail-text">${escape(item.text_final)}</div>
+        </div>`;
+    }
+    if (item.text_raw && !sameRaw) {
+      html += `
+        <div class="detail-section">
+          <div class="detail-section-head">
+            <span class="detail-label">原始转录</span>
+          </div>
+          <div class="detail-text-raw">${escape(item.text_raw)}</div>
+        </div>`;
+    }
+    html += `
+      <div class="detail-section">
+        <audio controls preload="none" src="/api/recordings/${item.id}/audio"></audio>
+      </div>`;
+  }
+
+  // Client / Audio Duration 已在卡片头部呈现，避免重复
+  const metaRows = [
+    ["⏱", "推理耗时", fmtSeconds(item.inference_ms)],
+    ["⌨", "节省击键", `${fmtNum(item.keystroke_count)}`],
+    ["#", "字数", `${fmtNum(item.char_count)}`],
+  ];
+  html += `
+    <div class="detail-section">
+      <div class="detail-meta">
+        ${metaRows
+          .map(
+            ([icon, label, value]) => `
+          <div class="detail-meta-label"><span class="detail-meta-icon">${icon}</span>${label}</div>
+          <div class="detail-meta-value">${value}</div>`
+          )
+          .join("")}
+      </div>
+    </div>`;
+
+  detailEl.innerHTML = html;
   detailEl.dataset.loaded = "1";
+
+  detailEl.querySelectorAll(".btn-copy").forEach((btn) => {
+    btn.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      const which = btn.dataset.copy;
+      const text = which === "raw" ? item.text_raw : item.text_final;
+      try {
+        await navigator.clipboard.writeText(text || "");
+        const orig = btn.innerHTML;
+        btn.innerHTML = "✓ 已复制";
+        btn.classList.add("copied");
+        setTimeout(() => {
+          btn.innerHTML = orig;
+          btn.classList.remove("copied");
+        }, 1400);
+      } catch (e) {
+        console.error("clipboard fail", e);
+      }
+    });
+  });
 }
 
 // ---------- 启动 ----------
