@@ -31,3 +31,11 @@ ALLOWED_IP_PREFIXES = ("10.0.0.",)
 # 日志
 LOG_LEVEL = "INFO"
 LOG_DIR = _REPO_ROOT / "logs"
+
+# 数据持久化
+DATA_DIR = _REPO_ROOT / "data"
+DB_PATH = DATA_DIR / "asr.db"
+RECORDINGS_DIR = _REPO_ROOT / "recordings"
+
+# 静态资源（dashboard 前端）
+STATIC_DIR = _REPO_ROOT / "static"

@@ -1,3 +1,6 @@
+import time
+from typing import NamedTuple
+
 from qwen_asr import Qwen3ASRModel
 
 import config
@@ -8,6 +11,12 @@ from logger import setup_logger
 logger = setup_logger(__name__)
 
 _model = None
+
+
+class TranscribeResult(NamedTuple):
+    raw: str
+    final: str
+    inference_ms: int
 
 
 def load_model():
@@ -30,13 +39,15 @@ def load_model():
     return _model
 
 
-def transcribe(audio_path: str) -> str:
+def transcribe(audio_path: str) -> TranscribeResult:
     model = load_model()
+    t0 = time.perf_counter()
     try:
         results = model.transcribe(audio_path, language=None)
     except Exception as exc:
         logger.exception("模型推理失败: %s", audio_path)
         raise TranscriptionError(f"模型推理失败: {audio_path}") from exc
+    inference_ms = int((time.perf_counter() - t0) * 1000)
 
     if not results or not getattr(results[0], "text", None):
         logger.error("模型推理返回空结果: %s, results=%r", audio_path, results)
@@ -51,4 +62,4 @@ def transcribe(audio_path: str) -> str:
 
     logger.info(f"原始输出: {raw}")
     logger.info(f"后处理后: {normalized}")
-    return normalized
+    return TranscribeResult(raw=raw, final=normalized, inference_ms=inference_ms)
