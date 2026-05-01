@@ -310,12 +310,13 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ---------- 搜索 + 筛选合一面板（参考 Linear / Vercel 的搜索 hero）---------- */
+/* 注意：不能 overflow: hidden —— 否则下拉菜单（dropdown-menu）会被裁剪。
+ * 改为让 .filter-row 自己负责底部圆角，让圆角效果不依赖父级裁剪。 */
 .search-panel {
   background: var(--bg-elevated);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
   margin-bottom: 18px;
-  overflow: hidden;
   transition: border-color 120ms, box-shadow 120ms;
 }
 
@@ -371,7 +372,7 @@ a { color: inherit; text-decoration: none; }
 
 .search-clear:hover { color: var(--fg); border-color: var(--border); }
 
-/* 下：筛选行 */
+/* 下：筛选行（自己负责底部圆角，让 panel 不必 overflow:hidden） */
 .filter-row {
   display: flex;
   align-items: center;
@@ -380,6 +381,8 @@ a { color: inherit; text-decoration: none; }
   border-top: 1px solid var(--border-soft);
   background: var(--bg-soft);
   flex-wrap: wrap;
+  border-bottom-left-radius: calc(var(--radius) - 1px);
+  border-bottom-right-radius: calc(var(--radius) - 1px);
 }
 
 .filter-divider {
