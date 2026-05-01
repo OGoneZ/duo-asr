@@ -508,8 +508,8 @@ function setupHistoryFilters() {
       labelId: "history-post-label",
       items: [
         { value: "all", label: "全部" },
-        { value: "1", label: "仅经过后处理" },
-        { value: "0", label: "仅未后处理" },
+        { value: "1", label: "已后处理" },
+        { value: "0", label: "未后处理" },
       ],
       initialValue: historyPostProc,
       onChange: (v) => {
@@ -559,8 +559,8 @@ function setupHistoryFilters() {
     historyPostDD && historyPostDD.setItems(
       [
         { value: "all", label: "全部" },
-        { value: "1", label: "仅经过后处理" },
-        { value: "0", label: "仅未后处理" },
+        { value: "1", label: "已后处理" },
+        { value: "0", label: "未后处理" },
       ],
       "all",
     );
