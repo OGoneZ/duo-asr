@@ -211,7 +211,10 @@ function clientQuery() {
 }
 
 async function loadSummary() {
-  const s = await fetchJSON(`/api/stats/summary?_=1${clientQuery()}`);
+  const params = new URLSearchParams();
+  if (currentClient && currentClient !== "all") params.set("client", currentClient);
+  if (currentDays) params.set("days", String(currentDays));
+  const s = await fetchJSON(`/api/stats/summary?${params}`);
   document.getElementById("stat-chars").textContent = fmtNum(s.total_chars);
   document.getElementById("stat-keystrokes").textContent = fmtNum(s.total_keystrokes);
 
@@ -749,6 +752,8 @@ document.addEventListener("DOMContentLoaded", () => {
       document.querySelectorAll("#period-switch button").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       currentDays = parseInt(btn.dataset.days, 10);
+      // 时段切换：summary 卡片 + 折线图都按新时间窗刷新
+      loadSummary();
       loadDaily();
     });
   });

@@ -92,9 +92,20 @@ def _client_filter(client: str | None) -> tuple[str, list]:
     return "AND client_host = ?", [client]
 
 
-def query_summary(client: str | None = None) -> dict:
-    """累计统计：总记录、总字数、总击键、总时长。仅成功条目计入正向统计。"""
-    flt, params = _client_filter(client)
+def query_summary(client: str | None = None, days: int | None = None) -> dict:
+    """累计统计：总记录、总字数、总击键、总时长。仅成功条目计入正向统计。
+    days  非空时只统计最近 N 天的记录。
+    """
+    conds: list[str] = []
+    params: list = []
+    if client and client != "all":
+        conds.append("client_host = ?")
+        params.append(client)
+    if days and days > 0:
+        conds.append("created_at >= datetime('now', ?)")
+        params.append(f"-{days} days")
+    extra = (" AND " + " AND ".join(conds)) if conds else ""
+
     with _connect() as conn:
         row = conn.execute(
             f"""
@@ -107,12 +118,12 @@ def query_summary(client: str | None = None) -> dict:
                 MIN(created_at)                     AS first_at,
                 MAX(created_at)                     AS last_at
             FROM transcriptions
-            WHERE error IS NULL {flt}
+            WHERE error IS NULL {extra}
             """,
             params,
         ).fetchone()
         err_count = conn.execute(
-            f"SELECT COUNT(*) AS c FROM transcriptions WHERE error IS NOT NULL {flt}",
+            f"SELECT COUNT(*) AS c FROM transcriptions WHERE error IS NOT NULL {extra}",
             params,
         ).fetchone()["c"]
     out = dict(row)

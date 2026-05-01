@@ -227,8 +227,11 @@ async def health():
 
 
 @app.get("/api/stats/summary")
-async def stats_summary(client: str | None = Query(None)):
-    s = db.query_summary(client)
+async def stats_summary(
+    client: str | None = Query(None),
+    days: int | None = Query(None, ge=1, le=3650),
+):
+    s = db.query_summary(client, days=days)
     duration = s.get("total_duration_sec") or 0
     chars = s.get("total_chars") or 0
     count = s.get("total_count") or 0
