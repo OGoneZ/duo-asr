@@ -53,6 +53,30 @@ let currentDays = 30;
 let currentClient = "all";    // "all" 或具体 client_host
 let knownClients = [];
 
+// ---------- 主题 ----------
+const THEME_KEY = "asr-panel-theme";
+
+function readTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === "light" || saved === "dark") return saved;
+  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  // 图表用 CSS 变量取色，主题变了要重绘
+  if (currentView === "home" && typeof loadDaily === "function") loadDaily();
+}
+
+function toggleTheme() {
+  const next = readTheme() === "dark" ? "light" : "dark";
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+}
+
+// 启动时立刻应用，避免闪白
+applyTheme(readTheme());
+
 // ---------- 路由 ----------
 function syncRoute() {
   const hash = location.hash.replace(/^#\//, "") || "home";
@@ -433,6 +457,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("load-more-btn").addEventListener("click", () => loadHistory(false));
+
+  // 主题切换
+  document.getElementById("theme-toggle").addEventListener("click", toggleTheme);
 
   // 客户端下拉
   document.getElementById("client-toggle").addEventListener("click", (e) => {

@@ -20,6 +20,16 @@
     <div class="sidebar-foot" id="last-update"></div>
   </aside>
 
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换主题">
+    <svg class="theme-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+    <svg class="theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+    </svg>
+  </button>
+
   <main class="content">
     <!-- 首页 -->
     <section class="view view-home" data-view="home">
@@ -43,21 +53,21 @@
 
       <div class="cards">
         <div class="card">
+          <div class="card-label">累计转录时长</div>
+          <div class="card-value">
+            <span id="stat-duration">—</span><span class="card-unit" id="stat-duration-unit"></span>
+          </div>
+        </div>
+        <div class="card">
           <div class="card-label">累计转录</div>
           <div class="card-value">
             <span id="stat-chars">—</span><span class="card-unit">字</span>
           </div>
         </div>
         <div class="card">
-          <div class="card-label">累计节省键盘敲击</div>
+          <div class="card-label">节省键盘敲击</div>
           <div class="card-value">
             <span id="stat-keystrokes">—</span><span class="card-unit">次</span>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-label">累计转录时长</div>
-          <div class="card-value">
-            <span id="stat-duration">—</span><span class="card-unit" id="stat-duration-unit"></span>
           </div>
         </div>
         <div class="card">

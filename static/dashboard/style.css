@@ -1,6 +1,6 @@
 /* 设计参考：Linear / Vercel / shadcn — 极简、空间感、低饱和度 */
 
-:root {
+:root, :root[data-theme="dark"] {
   /* 基础色调：近黑底色 + 微调灰阶 */
   --bg:           #050505;
   --bg-elevated: #0c0c0d;
@@ -43,6 +43,37 @@
   --radius:    10px;
   --radius-sm:  6px;
   --sidebar-w: 220px;
+}
+
+:root[data-theme="light"] {
+  /* 浅色主题：近白底 + 灰阶 */
+  --bg:           #fafafa;
+  --bg-elevated: #ffffff;
+  --bg-soft:     #f4f4f5;
+  --border:      #d4d4d8;
+  --border-soft: #e4e4e7;
+  --hover:       #f4f4f5;
+
+  --fg:          #0a0a0a;
+  --fg-mid:      #52525b;
+  --fg-dim:      #71717a;
+  --fg-faint:    #a1a1aa;
+
+  --accent:        #0a0a0a;
+  --accent-mid:    #27272a;
+  --accent-soft:   rgba(0, 0, 0, 0.06);
+
+  /* 数据色调暗一点（在白底上太亮的莫兰迪色饱和度过高） */
+  --data-1: #6366f1;
+  --data-2: #10b981;
+  --data-3: #f59e0b;
+  --data-4: #ec4899;
+  --data-5: #3b82f6;
+  --data-6: #ef4444;
+  --data-7: #8b5cf6;
+
+  --error: #dc2626;
+  --error-soft: rgba(220, 38, 38, 0.1);
 }
 
 * { box-sizing: border-box; }
@@ -139,6 +170,44 @@ a { color: inherit; text-decoration: none; }
   font-size: 11px;
   color: var(--fg-faint);
 }
+
+/* 主题切换按钮：固定在视窗右上角 */
+.theme-toggle {
+  position: fixed;
+  top: 22px;
+  right: 28px;
+  z-index: 50;
+  width: 36px;
+  height: 36px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  color: var(--fg-mid);
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 100ms, border-color 100ms, transform 100ms;
+}
+
+.theme-toggle:hover {
+  color: var(--fg);
+  border-color: var(--border);
+  transform: rotate(15deg);
+}
+
+.theme-toggle:active {
+  transform: rotate(15deg) scale(0.94);
+}
+
+/* 默认（dark 主题）：显示太阳（暗示点击切到浅色）；隐藏月亮 */
+.theme-toggle .theme-icon-moon { display: none; }
+.theme-toggle .theme-icon-sun { display: block; }
+
+/* light 主题：显示月亮（暗示点击切到深色）；隐藏太阳 */
+:root[data-theme="light"] .theme-toggle .theme-icon-moon { display: block; }
+:root[data-theme="light"] .theme-toggle .theme-icon-sun { display: none; }
 
 /* ---------- Content ---------- */
 .content {
@@ -269,48 +338,58 @@ a { color: inherit; text-decoration: none; }
   box-shadow: 0 0 0 0.5px var(--border), 0 1px 2px rgba(0,0,0,0.4);
 }
 
-/* ---------- Cards ---------- */
+/* ---------- Cards：两行 × 3 列固定布局 ---------- */
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
   margin-bottom: 32px;
+}
+
+@media (max-width: 720px) {
+  .cards { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 460px) {
+  .cards { grid-template-columns: 1fr; }
 }
 
 .card {
   background: var(--bg-elevated);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
-  padding: 18px 20px;
+  padding: 22px 26px;
   transition: border-color 100ms ease;
+  min-height: 110px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .card:hover { border-color: var(--border); }
 
 .card-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 12px;
+  letter-spacing: 0.02em;
   color: var(--fg-dim);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   font-weight: 500;
 }
 
 .card-value {
   font-family: var(--font-display);
-  font-size: 28px;
+  font-size: 34px;
   font-weight: 600;
-  letter-spacing: -0.6px;
+  letter-spacing: -0.8px;
   font-variant-numeric: tabular-nums;
   color: var(--fg);
-  line-height: 1.1;
+  line-height: 1.05;
 }
 
 .card-unit {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   color: var(--fg-dim);
-  margin-left: 4px;
+  margin-left: 6px;
 }
 
 .card-sub {
@@ -518,6 +597,10 @@ audio {
   width: 100%;
   height: 36px;
   filter: invert(0.92) hue-rotate(180deg) saturate(0.75);
+}
+
+:root[data-theme="light"] audio {
+  filter: none;
 }
 
 /* 元信息列表（仿 VoiceInk 底部） */
