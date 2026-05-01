@@ -7,6 +7,7 @@ _REPO_ROOT = Path(__file__).parent
 
 # 模型
 MODEL_PATH = _REPO_ROOT / "models" / "Qwen3-ASR-1.7B"
+MODEL_NAME = "Qwen3-ASR-1.7B"  # 写入 db 用，便于追溯哪个模型识别的
 
 
 def _auto_device() -> str:

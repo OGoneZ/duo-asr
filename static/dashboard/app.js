@@ -1,12 +1,24 @@
 // ---------- 工具 ----------
 const fmtNum = (n) => (n ?? 0).toLocaleString();
 
-const fmtDuration = (sec) => {
+// 累计转录时长：要 "X 时 Y 分" / "X 分 Y 秒" 这种组合格式，单位嵌在数字里
+const fmtDurationCombo = (sec) => {
   if (!sec) return "0 分";
-  const h = Math.floor(sec / 3600);
-  const m = Math.round((sec % 3600) / 60);
+  const totalSec = Math.round(sec);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
   if (h > 0) return `${h} 时 ${m} 分`;
-  return `${m} 分钟`;
+  if (m > 0) return `${m} 分 ${s} 秒`;
+  return `${s} 秒`;
+};
+
+// 推理耗时数值（不带单位）
+const fmtSecondsValue = (ms) => {
+  if (!ms) return "—";
+  const sec = ms / 1000;
+  if (sec < 10) return sec.toFixed(2);
+  return sec.toFixed(1);
 };
 
 const fmtTime = (iso) => {
@@ -36,7 +48,7 @@ async function fetchJSON(url) {
 
 // ---------- 状态 ----------
 const VIEWS = ["home", "history"];
-let currentView = "home";
+let currentView = null;       // 初始 null：首次 syncRoute 必触发数据加载
 let currentDays = 30;
 let currentClient = "all";    // "all" 或具体 client_host
 let knownClients = [];
@@ -115,17 +127,16 @@ async function loadSummary() {
   const s = await fetchJSON(`/api/stats/summary?_=1${clientQuery()}`);
   document.getElementById("stat-chars").textContent = fmtNum(s.total_chars);
   document.getElementById("stat-keystrokes").textContent = fmtNum(s.total_keystrokes);
-  document.getElementById("stat-duration").textContent = fmtDuration(s.total_duration_sec);
-  document.getElementById("stat-cpm").textContent = s.chars_per_minute || "—";
-  document.getElementById("stat-inference").textContent = fmtSeconds(s.avg_inference_ms);
-  document.getElementById("stat-avg-dur").textContent = s.avg_duration_sec
-    ? `${s.avg_duration_sec} s`
-    : "—";
 
-  document.getElementById("stat-count").textContent = `${fmtNum(s.total_count)} 次转录`;
-  document.getElementById("stat-period").textContent = s.first_at
-    ? `自 ${s.first_at.slice(0, 10)}`
-    : "";
+  // 累计时长用组合格式 "X 时 Y 分"，单位嵌在数字里，外置 unit span 留空
+  document.getElementById("stat-duration").textContent = fmtDurationCombo(s.total_duration_sec);
+  document.getElementById("stat-duration-unit").textContent = "";
+
+  document.getElementById("stat-avg-dur").textContent =
+    s.avg_duration_sec ? s.avg_duration_sec : "—";
+  document.getElementById("stat-cpm").textContent = s.chars_per_minute || "—";
+  document.getElementById("stat-inference").textContent = fmtSecondsValue(s.avg_inference_ms);
+
   document.getElementById("last-update").textContent =
     `更新 ${new Date().toLocaleTimeString()}`;
 }
@@ -371,6 +382,7 @@ function toggleDetail(li, item) {
     ["⏱", "推理耗时", fmtSeconds(item.inference_ms)],
     ["⌨", "节省击键", `${fmtNum(item.keystroke_count)}`],
     ["#", "字数", `${fmtNum(item.char_count)}`],
+    ["⚙", "模型", escape(item.model_name || "—")],
   ];
   html += `
     <div class="detail-section">
@@ -435,6 +447,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("hashchange", syncRoute);
   syncRoute();
 
+  // 30s 轮询首页 summary（仅在 home view，避开历史记录页）
   setInterval(() => {
     if (currentView === "home") {
       loadClients();

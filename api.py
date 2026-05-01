@@ -174,6 +174,7 @@ async def transcribe(request: Request, file: UploadFile = File(...)):
         "audio_duration": duration,
         "client_ip": getattr(request.state, "client_ip", None),
         "client_host": getattr(request.state, "client_host", None),
+        "model_name": config.MODEL_NAME,
     }
 
     start_time = time.time()

@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS transcriptions (
     keystroke_count INTEGER,
     client_ip       TEXT,
     client_host     TEXT,
+    model_name      TEXT,
     error           TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_created_at ON transcriptions(created_at DESC);
@@ -36,6 +37,10 @@ def init() -> None:
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     with _connect() as conn:
         conn.executescript(_SCHEMA)
+        # 幂等迁移：旧 db 缺列时补加
+        existing = {r["name"] for r in conn.execute("PRAGMA table_info(transcriptions)")}
+        if "model_name" not in existing:
+            conn.execute("ALTER TABLE transcriptions ADD COLUMN model_name TEXT")
 
 
 @contextmanager
@@ -147,9 +152,9 @@ def query_recent(limit: int, offset: int = 0) -> list[dict]:
             """
             SELECT id, created_at, audio_duration, inference_ms,
                    text_raw, text_final, char_count, keystroke_count,
-                   client_host, client_ip, error
+                   client_host, client_ip, model_name, error
             FROM transcriptions
-            ORDER BY id DESC
+            ORDER BY created_at DESC, id DESC
             LIMIT ? OFFSET ?
             """,
             (limit, offset),

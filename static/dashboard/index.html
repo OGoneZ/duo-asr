@@ -43,34 +43,40 @@
 
       <div class="cards">
         <div class="card">
-          <div class="card-label">累计字数</div>
-          <div class="card-value" id="stat-chars">—</div>
-          <div class="card-sub" id="stat-count"></div>
+          <div class="card-label">累计转录</div>
+          <div class="card-value">
+            <span id="stat-chars">—</span><span class="card-unit">字</span>
+          </div>
         </div>
         <div class="card">
-          <div class="card-label">键盘敲击</div>
-          <div class="card-value" id="stat-keystrokes">—</div>
-          <div class="card-sub">中文按拼音展开</div>
+          <div class="card-label">累计节省键盘敲击</div>
+          <div class="card-value">
+            <span id="stat-keystrokes">—</span><span class="card-unit">次</span>
+          </div>
         </div>
         <div class="card">
-          <div class="card-label">说话时长</div>
-          <div class="card-value" id="stat-duration">—</div>
-          <div class="card-sub" id="stat-period"></div>
+          <div class="card-label">累计转录时长</div>
+          <div class="card-value">
+            <span id="stat-duration">—</span><span class="card-unit" id="stat-duration-unit"></span>
+          </div>
         </div>
         <div class="card">
-          <div class="card-label">平均一条</div>
-          <div class="card-value" id="stat-avg-dur">—</div>
-          <div class="card-sub">每次平均时长</div>
+          <div class="card-label">平均语速</div>
+          <div class="card-value">
+            <span id="stat-cpm">—</span><span class="card-unit">字/分</span>
+          </div>
         </div>
         <div class="card">
-          <div class="card-label">语速 字/分</div>
-          <div class="card-value" id="stat-cpm">—</div>
-          <div class="card-sub">中文 + 英文</div>
+          <div class="card-label">平均语音时长</div>
+          <div class="card-value">
+            <span id="stat-avg-dur">—</span><span class="card-unit">s</span>
+          </div>
         </div>
         <div class="card">
-          <div class="card-label">推理耗时</div>
-          <div class="card-value" id="stat-inference">—</div>
-          <div class="card-sub">每次平均</div>
+          <div class="card-label">平均推理耗时</div>
+          <div class="card-value">
+            <span id="stat-inference">—</span><span class="card-unit">s</span>
+          </div>
         </div>
       </div>
 
