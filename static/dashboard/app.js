@@ -363,14 +363,27 @@ let historyOffset = 0;
 let historyHasMore = true;
 let historyQuery = "";
 let historyClient = "all";   // "all" 或具体 client_host
-let historySinceDays = null; // null=全部时间；数字=最近 N 天
+let historySince = "";       // YYYY-MM-DD
+let historyUntil = "";       // YYYY-MM-DD
+let historyPostProc = "all"; // "all" / "1" / "0"
 
 function buildHistoryParams() {
   const p = new URLSearchParams({ n: PAGE_SIZE, offset: historyOffset });
   if (historyQuery) p.set("q", historyQuery);
   if (historyClient && historyClient !== "all") p.set("client", historyClient);
-  if (historySinceDays) p.set("since_days", historySinceDays);
+  if (historySince) p.set("since", historySince);
+  if (historyUntil) p.set("until", historyUntil);
+  if (historyPostProc !== "all") p.set("post_processed", historyPostProc);
   return p.toString();
+}
+
+function activeFilterCount() {
+  let n = 0;
+  if (historyQuery) n++;
+  if (historyClient !== "all") n++;
+  if (historySince || historyUntil) n++;
+  if (historyPostProc !== "all") n++;
+  return n;
 }
 
 async function loadHistory(reset = true) {
@@ -390,7 +403,7 @@ async function loadHistory(reset = true) {
   btn.disabled = !historyHasMore;
   btn.textContent = historyHasMore ? "加载更多" : "没有更多了";
 
-  const hasFilter = historyQuery || historyClient !== "all" || historySinceDays;
+  const hasFilter = activeFilterCount() > 0;
   const ul = document.getElementById("recent-list");
   if (historyOffset === 0 && hasFilter) {
     ul.innerHTML = `<li class="muted" style="padding:14px">没有匹配的记录。</li>`;
@@ -399,26 +412,160 @@ async function loadHistory(reset = true) {
   const parts = [];
   if (historyQuery) parts.push(`「${historyQuery}」`);
   if (historyClient !== "all") parts.push(historyClient);
-  if (historySinceDays) parts.push(`近 ${historySinceDays} 天`);
+  if (historySince || historyUntil) {
+    parts.push(`${historySince || "…"} → ${historyUntil || "…"}`);
+  }
+  if (historyPostProc === "1") parts.push("已后处理");
+  else if (historyPostProc === "0") parts.push("未后处理");
   document.getElementById("history-count").textContent =
     parts.length
       ? `${parts.join(" · ")} → ${historyOffset} 条`
       : `已加载 ${historyOffset} 条`;
+
+  // 「清除全部」按钮可见性
+  document.getElementById("filter-reset").hidden = !hasFilter;
 }
 
+// ----- 通用自定义 dropdown 助手 -----
+// dd: { rootId, labelId, items: [{value, label}], onChange }
+function setupDropdown({ rootId, labelId, items, initialValue, onChange }) {
+  const root = document.getElementById(rootId);
+  const toggle = root.querySelector(".dropdown-toggle");
+  const menu = root.querySelector(".dropdown-menu");
+  const labelEl = document.getElementById(labelId);
+
+  const render = (selected) => {
+    menu.innerHTML = items
+      .map(
+        (o) =>
+          `<li data-value="${escape(o.value)}"${
+            o.value === selected ? ' class="selected"' : ""
+          }>${escape(o.label)}</li>`
+      )
+      .join("");
+    const cur = items.find((o) => o.value === selected) || items[0];
+    if (cur) labelEl.textContent = cur.label;
+
+    menu.querySelectorAll("li").forEach((li) => {
+      li.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const v = li.dataset.value;
+        render(v);
+        close();
+        onChange(v);
+      });
+    });
+  };
+
+  const open = () => {
+    root.classList.add("open");
+    menu.hidden = false;
+  };
+  const close = () => {
+    root.classList.remove("open");
+    menu.hidden = true;
+  };
+
+  toggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    root.classList.contains("open") ? close() : open();
+  });
+  document.addEventListener("click", (e) => {
+    if (!root.contains(e.target)) close();
+  });
+
+  render(initialValue);
+  return { setItems: (newItems, sel) => { items = newItems; render(sel); } };
+}
+
+let historyClientDD = null;
+let historyPostDD = null;
+
 async function loadHistoryClientOptions() {
-  // 复用首页已有的客户端列表接口
   const list = await fetchJSON("/api/stats/clients");
-  const sel = document.getElementById("history-client");
-  // 保留第一个 option（全部），其他重建
-  while (sel.options.length > 1) sel.remove(1);
-  for (const c of list) {
-    const opt = document.createElement("option");
-    opt.value = c;
-    opt.textContent = c;
-    sel.appendChild(opt);
+  const items = [{ value: "all", label: "全部" }, ...list.map((c) => ({ value: c, label: c }))];
+  if (historyClientDD) {
+    historyClientDD.setItems(items, historyClient);
+  } else {
+    historyClientDD = setupDropdown({
+      rootId: "history-client-dd",
+      labelId: "history-client-label",
+      items,
+      initialValue: historyClient,
+      onChange: (v) => {
+        historyClient = v;
+        loadHistory(true);
+      },
+    });
   }
-  sel.value = historyClient;
+}
+
+function setupHistoryFilters() {
+  // 后处理筛选
+  if (!historyPostDD) {
+    historyPostDD = setupDropdown({
+      rootId: "history-post-dd",
+      labelId: "history-post-label",
+      items: [
+        { value: "all", label: "全部" },
+        { value: "1", label: "仅经过后处理" },
+        { value: "0", label: "仅未后处理" },
+      ],
+      initialValue: historyPostProc,
+      onChange: (v) => {
+        historyPostProc = v;
+        loadHistory(true);
+      },
+    });
+  }
+
+  // 日期范围
+  const sinceEl = document.getElementById("history-since");
+  const untilEl = document.getElementById("history-until");
+  const dateClear = document.getElementById("date-clear");
+  const onDateChange = () => {
+    historySince = sinceEl.value || "";
+    historyUntil = untilEl.value || "";
+    dateClear.hidden = !(historySince || historyUntil);
+    loadHistory(true);
+  };
+  sinceEl.addEventListener("change", onDateChange);
+  untilEl.addEventListener("change", onDateChange);
+  dateClear.addEventListener("click", () => {
+    sinceEl.value = "";
+    untilEl.value = "";
+    historySince = "";
+    historyUntil = "";
+    dateClear.hidden = true;
+    loadHistory(true);
+  });
+
+  // 一键重置
+  document.getElementById("filter-reset").addEventListener("click", () => {
+    document.getElementById("history-search").value = "";
+    document.getElementById("history-search-clear").hidden = true;
+    sinceEl.value = "";
+    untilEl.value = "";
+    dateClear.hidden = true;
+    historyQuery = "";
+    historyClient = "all";
+    historySince = "";
+    historyUntil = "";
+    historyPostProc = "all";
+    historyClientDD && historyClientDD.setItems(
+      [{ value: "all", label: "全部" }, ...knownClients.map((c) => ({ value: c, label: c }))],
+      "all",
+    );
+    historyPostDD && historyPostDD.setItems(
+      [
+        { value: "all", label: "全部" },
+        { value: "1", label: "仅经过后处理" },
+        { value: "0", label: "仅未后处理" },
+      ],
+      "all",
+    );
+    loadHistory(true);
+  });
 }
 
 function appendHistoryItems(items) {
@@ -437,7 +584,8 @@ function appendHistoryItems(items) {
 
     const durLabel = item.audio_duration ? `${item.audio_duration.toFixed(1)}s` : "—";
     const clientLabel = item.client_host || item.client_ip || "unknown";
-    const isModified = item.text_raw && item.text_final && item.text_raw !== item.text_final;
+    // 直接读 db 字段，避免对每条都跑 LCS 比对
+    const isModified = item.post_processed === 1;
 
     // 预览文本：经过后处理的（raw != final）直接渲染 diff，让用户折叠状态就能看出
     let previewHtml;
@@ -628,16 +776,8 @@ document.addEventListener("DOMContentLoaded", () => {
     searchInput.focus();
   });
 
-  // 时间 / 客户端筛选下拉
-  document.getElementById("history-since").addEventListener("change", (e) => {
-    const v = e.target.value;
-    historySinceDays = v ? parseInt(v, 10) : null;
-    loadHistory(true);
-  });
-  document.getElementById("history-client").addEventListener("change", (e) => {
-    historyClient = e.target.value || "all";
-    loadHistory(true);
-  });
+  // 历史页筛选栏（日期、客户端、后处理、重置）
+  setupHistoryFilters();
 
   // 主题切换
   document.getElementById("theme-toggle").addEventListener("click", toggleTheme);

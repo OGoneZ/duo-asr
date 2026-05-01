@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS transcriptions (
     client_ip       TEXT,
     client_host     TEXT,
     model_name      TEXT,
+    post_processed  INTEGER DEFAULT 0,
     error           TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_created_at ON transcriptions(created_at DESC);
@@ -41,6 +42,18 @@ def init() -> None:
         existing = {r["name"] for r in conn.execute("PRAGMA table_info(transcriptions)")}
         if "model_name" not in existing:
             conn.execute("ALTER TABLE transcriptions ADD COLUMN model_name TEXT")
+        if "post_processed" not in existing:
+            conn.execute("ALTER TABLE transcriptions ADD COLUMN post_processed INTEGER DEFAULT 0")
+            # 回填历史数据：raw != final 视为经过后处理
+            conn.execute("""
+                UPDATE transcriptions
+                SET post_processed = CASE
+                    WHEN text_raw IS NOT NULL
+                     AND text_final IS NOT NULL
+                     AND text_raw != text_final THEN 1
+                    ELSE 0
+                END
+            """)
 
 
 @contextmanager
@@ -151,12 +164,15 @@ def query_recent(
     offset: int = 0,
     q: str | None = None,
     client: str | None = None,
-    since_days: int | None = None,
+    since: str | None = None,
+    until: str | None = None,
+    post_processed: int | None = None,
 ) -> list[dict]:
-    """最近转录列表。
-    q          文本模糊搜索（匹配 text_final 或 text_raw）
-    client     按 client_host 过滤
-    since_days 只看最近 N 天（按 created_at）
+    """最近转录列表。所有过滤条件 AND 关系。
+    q              文本模糊（匹配 text_final 或 text_raw）
+    client         按 client_host 过滤
+    since / until  本地日期 YYYY-MM-DD（包含端点）
+    post_processed 0/1，1=只看经过后处理的
     """
     conds: list[str] = []
     params: list = []
@@ -168,9 +184,15 @@ def query_recent(
     if client and client != "all":
         conds.append("client_host = ?")
         params.append(client)
-    if since_days is not None and since_days > 0:
-        conds.append("created_at >= datetime('now', ?)")
-        params.append(f"-{since_days} days")
+    if since:
+        conds.append("DATE(created_at, 'localtime') >= ?")
+        params.append(since)
+    if until:
+        conds.append("DATE(created_at, 'localtime') <= ?")
+        params.append(until)
+    if post_processed in (0, 1):
+        conds.append("post_processed = ?")
+        params.append(post_processed)
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
 
     with _connect() as conn:
@@ -178,7 +200,7 @@ def query_recent(
             f"""
             SELECT id, created_at, audio_duration, inference_ms,
                    text_raw, text_final, char_count, keystroke_count,
-                   client_host, client_ip, model_name, error
+                   client_host, client_ip, model_name, post_processed, error
             FROM transcriptions
             {where}
             ORDER BY created_at DESC, id DESC

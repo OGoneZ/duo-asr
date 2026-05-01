@@ -199,6 +199,7 @@ async def transcribe(request: Request, file: UploadFile = File(...)):
 
     char_count = len(result.final) if result.final else 0
     keystroke_count = stats.estimate_keystrokes(result.final)
+    post_processed = 1 if (result.raw and result.final and result.raw != result.final) else 0
     db.insert_transcription({
         **record_base,
         "inference_ms": result.inference_ms,
@@ -206,6 +207,7 @@ async def transcribe(request: Request, file: UploadFile = File(...)):
         "text_final": result.final,
         "char_count": char_count,
         "keystroke_count": keystroke_count,
+        "post_processed": post_processed,
         "error": None,
     })
 
@@ -259,9 +261,14 @@ async def stats_recent(
     offset: int = Query(0, ge=0),
     q: str | None = Query(None),
     client: str | None = Query(None),
-    since_days: int | None = Query(None, ge=1, le=3650),
+    since: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    until: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    post_processed: int | None = Query(None, ge=0, le=1),
 ):
-    return db.query_recent(n, offset, q=q, client=client, since_days=since_days)
+    return db.query_recent(
+        n, offset, q=q, client=client,
+        since=since, until=until, post_processed=post_processed,
+    )
 
 
 @app.get("/api/recordings/{rec_id}")
