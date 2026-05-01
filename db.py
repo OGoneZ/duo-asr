@@ -146,18 +146,28 @@ def query_clients() -> list[str]:
     return [r["client"] for r in rows]
 
 
-def query_recent(limit: int, offset: int = 0) -> list[dict]:
+def query_recent(limit: int, offset: int = 0, q: str | None = None) -> list[dict]:
+    """最近转录列表。q 非空时按文本模糊搜索（text_final / text_raw）。"""
+    where = ""
+    params: list = []
+    if q:
+        # 转义 LIKE 通配符，让 % _ 按字面量搜
+        esc = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        like = f"%{esc}%"
+        where = "WHERE (text_final LIKE ? ESCAPE '\\' OR text_raw LIKE ? ESCAPE '\\')"
+        params = [like, like]
     with _connect() as conn:
         rows = conn.execute(
-            """
+            f"""
             SELECT id, created_at, audio_duration, inference_ms,
                    text_raw, text_final, char_count, keystroke_count,
                    client_host, client_ip, model_name, error
             FROM transcriptions
+            {where}
             ORDER BY created_at DESC, id DESC
             LIMIT ? OFFSET ?
             """,
-            (limit, offset),
+            [*params, limit, offset],
         ).fetchall()
     return [dict(r) for r in rows]
 

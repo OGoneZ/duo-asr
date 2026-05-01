@@ -40,6 +40,18 @@ const fmtSeconds = (ms) => {
 const escape = (s) =>
   String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+// 转义字符串里的 regex 元字符
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// 转义文本后，再把 query 命中的部分包成 <mark>。query 为空 → 等价于 escape
+function highlight(text, query) {
+  const safe = escape(text);
+  if (!query) return safe;
+  // 注意：query 也要 escape 后塞入正则，避免 < > & 被当 HTML
+  const re = new RegExp(escapeRegex(escape(query)), "gi");
+  return safe.replace(re, (m) => `<mark>${m}</mark>`);
+}
+
 async function fetchJSON(url) {
   const r = await fetch(url);
   if (!r.ok) throw new Error(`${url} → ${r.status}`);
@@ -298,6 +310,7 @@ async function loadDaily() {
 const PAGE_SIZE = 50;
 let historyOffset = 0;
 let historyHasMore = true;
+let historyQuery = "";
 
 async function loadHistory(reset = true) {
   if (reset) {
@@ -307,7 +320,10 @@ async function loadHistory(reset = true) {
   }
   if (!historyHasMore) return;
 
-  const items = await fetchJSON(`/api/stats/recent?n=${PAGE_SIZE}&offset=${historyOffset}`);
+  const qParam = historyQuery ? `&q=${encodeURIComponent(historyQuery)}` : "";
+  const items = await fetchJSON(
+    `/api/stats/recent?n=${PAGE_SIZE}&offset=${historyOffset}${qParam}`
+  );
   appendHistoryItems(items);
   historyOffset += items.length;
   historyHasMore = items.length === PAGE_SIZE;
@@ -316,11 +332,21 @@ async function loadHistory(reset = true) {
   btn.disabled = !historyHasMore;
   btn.textContent = historyHasMore ? "加载更多" : "没有更多了";
 
-  document.getElementById("history-count").textContent = `已加载 ${historyOffset} 条`;
+  const ul = document.getElementById("recent-list");
+  if (historyOffset === 0 && historyQuery) {
+    ul.innerHTML = `<li class="muted" style="padding:14px">没有匹配「${escape(historyQuery)}」的记录。</li>`;
+  }
+  document.getElementById("history-count").textContent =
+    historyQuery
+      ? `匹配「${historyQuery}」: ${historyOffset} 条`
+      : `已加载 ${historyOffset} 条`;
 }
 
 function appendHistoryItems(items) {
   const ul = document.getElementById("recent-list");
+  // 搜索时切到 in-search 模式：放开 -webkit-line-clamp 显示完整文本
+  ul.classList.toggle("in-search", !!historyQuery);
+
   if (historyOffset === 0 && items.length === 0) {
     ul.innerHTML = '<li class="muted" style="padding:14px">还没有转录记录。</li>';
     return;
@@ -343,7 +369,7 @@ function appendHistoryItems(items) {
         </div>
         <span class="recent-duration">${durLabel}</span>
       </div>
-      <div class="recent-text">${escape(previewText)}</div>
+      <div class="recent-text">${highlight(previewText, historyQuery)}</div>
       <div class="recent-detail"></div>
     `;
     li.addEventListener("click", (e) => {
@@ -383,7 +409,7 @@ function toggleDetail(li, item) {
             <span class="detail-label">${sameRaw ? "转录文本" : "后处理后"}</span>
             <button class="btn-copy" data-copy="final">⧉ 复制</button>
           </div>
-          <div class="detail-text">${escape(item.text_final)}</div>
+          <div class="detail-text">${highlight(item.text_final, historyQuery)}</div>
         </div>`;
     }
     if (item.text_raw && !sameRaw) {
@@ -392,7 +418,7 @@ function toggleDetail(li, item) {
           <div class="detail-section-head">
             <span class="detail-label">原始转录</span>
           </div>
-          <div class="detail-text-raw">${escape(item.text_raw)}</div>
+          <div class="detail-text-raw">${highlight(item.text_raw, historyQuery)}</div>
         </div>`;
     }
     html += `
@@ -457,6 +483,27 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("load-more-btn").addEventListener("click", () => loadHistory(false));
+
+  // 历史搜索：300ms 防抖
+  const searchInput = document.getElementById("history-search");
+  const searchClear = document.getElementById("history-search-clear");
+  let searchTimer = null;
+  searchInput.addEventListener("input", () => {
+    const v = searchInput.value.trim();
+    searchClear.hidden = v === "";
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      historyQuery = v;
+      loadHistory(true);
+    }, 300);
+  });
+  searchClear.addEventListener("click", () => {
+    searchInput.value = "";
+    searchClear.hidden = true;
+    historyQuery = "";
+    loadHistory(true);
+    searchInput.focus();
+  });
 
   // 主题切换
   document.getElementById("theme-toggle").addEventListener("click", toggleTheme);

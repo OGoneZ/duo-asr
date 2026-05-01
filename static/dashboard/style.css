@@ -309,6 +309,89 @@ a { color: inherit; text-decoration: none; }
   font-size: 10px;
 }
 
+/* ---------- 搜索框：大版（历史记录页顶部）---------- */
+.search-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 4px 18px;
+  margin-bottom: 18px;
+  gap: 12px;
+  transition: border-color 120ms, background 120ms;
+}
+
+.search-hero:focus-within {
+  border-color: var(--data-1);
+  background: var(--bg-elevated);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.search-hero-icon {
+  color: var(--fg-dim);
+  flex-shrink: 0;
+}
+
+.search-hero:focus-within .search-hero-icon {
+  color: var(--data-1);
+}
+
+.search-hero input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--fg);
+  font-size: 15px;
+  padding: 14px 0;
+  font-family: var(--font-sans);
+  min-width: 0;
+}
+
+.search-hero input::placeholder {
+  color: var(--fg-dim);
+}
+
+.search-clear {
+  background: var(--bg-soft);
+  border: 1px solid var(--border-soft);
+  color: var(--fg-dim);
+  cursor: pointer;
+  font-size: 14px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.search-clear:hover { color: var(--fg); border-color: var(--border); }
+
+/* ---------- 关键词高亮 ---------- */
+mark {
+  background: rgba(251, 191, 36, 0.32);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 2px;
+  font-weight: 600;
+}
+
+:root[data-theme="light"] mark {
+  background: rgba(250, 204, 21, 0.55);
+}
+
+/* 搜索时让卡片预览不再截断成一行，方便看上下文 */
+.recent-list.in-search .recent-text {
+  -webkit-line-clamp: unset;
+  overflow: visible;
+  white-space: pre-wrap;
+}
+
 /* ---------- 选择器（客户端 / 时段） ---------- */
 .segmented {
   display: inline-flex;

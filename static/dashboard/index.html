@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ASR Panel</title>
+  <title>DuoASR 数据面板</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <aside class="sidebar">
-    <div class="brand">ASR Panel</div>
+    <div class="brand">DuoASR 数据面板</div>
     <nav>
       <a href="#/" class="nav-item" data-view="home">
         <span class="nav-icon">▮</span> 首页
@@ -103,6 +103,14 @@
         <h1>历史记录</h1>
         <span class="muted" id="history-count"></span>
       </header>
+      <div class="search-hero">
+        <svg class="search-hero-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input type="search" id="history-search" placeholder="搜索转录内容…" autocomplete="off">
+        <button class="search-clear" id="history-search-clear" type="button" aria-label="清空" hidden>×</button>
+      </div>
       <ul class="recent-list" id="recent-list"></ul>
       <div class="load-more">
         <button id="load-more-btn">加载更多</button>
