@@ -7,8 +7,18 @@ _REPO_ROOT = Path(__file__).parent
 
 # 模型
 MODEL_PATH = _REPO_ROOT / "models" / "Qwen3-ASR-1.7B"
-DEVICE = "mps"          # mps / cuda / cpu
-DTYPE = torch.float16   # torch.float16 / torch.bfloat16 / torch.float32
+
+
+def _auto_device() -> str:
+    if torch.cuda.is_available():
+        return "cuda"
+    if torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+
+DEVICE = _auto_device()  # 想强制指定可直接改成 "cuda" / "mps" / "cpu"
+DTYPE = torch.float16    # torch.float16 / torch.bfloat16 / torch.float32
 
 # HTTP
 HOST = "0.0.0.0"
