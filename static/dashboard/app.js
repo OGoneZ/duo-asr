@@ -43,6 +43,54 @@ const escape = (s) =>
 // 转义字符串里的 regex 元字符
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+// 字符级 diff（基于 LCS）。返回合并后的 ops 数组
+function diffChars(a, b) {
+  a = a || ""; b = b || "";
+  const m = a.length, n = b.length;
+  // 长字符串保护：避免 O(m*n) 爆炸
+  if (m * n > 500000) return [{ type: "delete", text: a }, { type: "insert", text: b }];
+
+  const dp = Array.from({ length: m + 1 }, () => new Int16Array(n + 1));
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (a[i - 1] === b[j - 1]) dp[i][j] = dp[i - 1][j - 1] + 1;
+      else dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+  const ops = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
+      ops.push({ type: "equal", text: a[i - 1] });
+      i--; j--;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      ops.push({ type: "insert", text: b[j - 1] });
+      j--;
+    } else {
+      ops.push({ type: "delete", text: a[i - 1] });
+      i--;
+    }
+  }
+  ops.reverse();
+  // 合并相邻同 type
+  const merged = [];
+  for (const op of ops) {
+    const last = merged[merged.length - 1];
+    if (last && last.type === op.type) last.text += op.text;
+    else merged.push({ ...op });
+  }
+  return merged;
+}
+
+function renderDiff(raw, final) {
+  return diffChars(raw, final).map((op) => {
+    const t = escape(op.text);
+    if (op.type === "equal") return t;
+    if (op.type === "delete") return `<del>${t}</del>`;
+    return `<ins>${t}</ins>`;
+  }).join("");
+}
+
 // 转义文本后，再把 query 命中的部分包成 <mark>。query 为空 → 等价于 escape
 function highlight(text, query) {
   const safe = escape(text);
@@ -356,25 +404,36 @@ function appendHistoryItems(items) {
     li.className = "recent-item" + (item.error ? " has-error" : "");
     li.dataset.id = item.id;
 
-    const previewText = item.text_final || item.error || "(空)";
     const durLabel = item.audio_duration ? `${item.audio_duration.toFixed(1)}s` : "—";
     const clientLabel = item.client_host || item.client_ip || "unknown";
+    const isModified = item.text_raw && item.text_final && item.text_raw !== item.text_final;
+
+    // 预览文本：经过后处理的（raw != final）直接渲染 diff，让用户折叠状态就能看出
+    let previewHtml;
+    if (item.error) {
+      previewHtml = highlight(item.error, historyQuery);
+    } else if (isModified) {
+      previewHtml = renderDiff(item.text_raw, item.text_final);
+    } else {
+      previewHtml = highlight(item.text_final || "(空)", historyQuery);
+    }
 
     li.innerHTML = `
       <div class="recent-head">
         <div class="recent-meta-line">
           <span class="recent-date">${fmtTime(item.created_at)}</span>
           <span class="recent-client">${escape(clientLabel)}</span>
+          ${isModified ? '<span class="modified-tag">已后处理</span>' : ""}
           ${item.error ? '<span class="error-tag">失败</span>' : ""}
         </div>
         <span class="recent-duration">${durLabel}</span>
       </div>
-      <div class="recent-text">${highlight(previewText, historyQuery)}</div>
+      <div class="recent-text">${previewHtml}</div>
       <div class="recent-detail"></div>
     `;
     li.addEventListener("click", (e) => {
-      // 点 audio / copy 按钮时不要折叠
-      if (e.target.closest("audio, .btn-copy")) return;
+      // 点 audio / copy / 标签页 时不要折叠
+      if (e.target.closest("audio, .btn-copy, .diff-tab")) return;
       toggleDetail(li, item);
     });
     ul.appendChild(li);
@@ -403,23 +462,31 @@ function toggleDetail(li, item) {
       </div>`;
   } else {
     if (item.text_final) {
-      html += `
-        <div class="detail-section">
-          <div class="detail-section-head">
-            <span class="detail-label">${sameRaw ? "转录文本" : "后处理后"}</span>
-            <button class="btn-copy" data-copy="final">⧉ 复制</button>
-          </div>
-          <div class="detail-text">${highlight(item.text_final, historyQuery)}</div>
-        </div>`;
-    }
-    if (item.text_raw && !sameRaw) {
-      html += `
-        <div class="detail-section">
-          <div class="detail-section-head">
-            <span class="detail-label">原始转录</span>
-          </div>
-          <div class="detail-text-raw">${highlight(item.text_raw, historyQuery)}</div>
-        </div>`;
+      if (sameRaw) {
+        // raw 和 final 一致 → 一段普通文本
+        html += `
+          <div class="detail-section">
+            <div class="detail-section-head">
+              <span class="detail-label">转录文本</span>
+              <button class="btn-copy" type="button">⧉ 复制</button>
+            </div>
+            <div class="detail-text">${highlight(item.text_final, historyQuery)}</div>
+          </div>`;
+      } else {
+        // 后处理改写过 → 三态可切换（差异对比 / 原始 / 后处理）
+        html += `
+          <div class="detail-section">
+            <div class="detail-section-head">
+              <div class="detail-tabs" role="tablist">
+                <button class="diff-tab" data-view="diff" aria-selected="true" type="button">差异对比</button>
+                <button class="diff-tab" data-view="raw" type="button">原始</button>
+                <button class="diff-tab" data-view="final" type="button">后处理</button>
+              </div>
+              <button class="btn-copy" type="button">⧉ 复制</button>
+            </div>
+            <div class="detail-text" data-text-block>${renderDiff(item.text_raw || "", item.text_final)}</div>
+          </div>`;
+      }
     }
     html += `
       <div class="detail-section">
@@ -450,11 +517,36 @@ function toggleDetail(li, item) {
   detailEl.innerHTML = html;
   detailEl.dataset.loaded = "1";
 
+  // 差异视图三态切换
+  detailEl.querySelectorAll(".diff-tab").forEach((tab) => {
+    tab.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const view = tab.dataset.view;
+      detailEl.querySelectorAll(".diff-tab").forEach((t) =>
+        t.setAttribute("aria-selected", t === tab ? "true" : "false")
+      );
+      const block = detailEl.querySelector("[data-text-block]");
+      if (!block) return;
+      if (view === "diff") {
+        block.innerHTML = renderDiff(item.text_raw || "", item.text_final);
+      } else if (view === "raw") {
+        block.innerHTML = highlight(item.text_raw || "", historyQuery);
+      } else {
+        block.innerHTML = highlight(item.text_final, historyQuery);
+      }
+    });
+  });
+
   detailEl.querySelectorAll(".btn-copy").forEach((btn) => {
     btn.addEventListener("click", async (ev) => {
       ev.stopPropagation();
-      const which = btn.dataset.copy;
-      const text = which === "raw" ? item.text_raw : item.text_final;
+      // 跟随当前显示内容：sameRaw → 复制 final；
+      // 多 tab 时根据当前选中的 tab（diff 视图视为 final，因为 diff 是 final 的可视化）
+      let text = item.text_final;
+      const activeTab = detailEl.querySelector('.diff-tab[aria-selected="true"]');
+      if (activeTab && activeTab.dataset.view === "raw") {
+        text = item.text_raw;
+      }
       try {
         await navigator.clipboard.writeText(text || "");
         const orig = btn.innerHTML;

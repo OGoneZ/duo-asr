@@ -385,6 +385,98 @@ mark {
   background: rgba(250, 204, 21, 0.55);
 }
 
+/* ---------- diff 视图 ---------- */
+.detail-text del {
+  background: rgba(248, 113, 113, 0.18);
+  color: var(--error);
+  text-decoration: line-through;
+  text-decoration-color: rgba(248, 113, 113, 0.5);
+  border-radius: 2px;
+  padding: 1px 3px;
+  margin: 0 1px;
+}
+
+.detail-text ins {
+  background: rgba(52, 211, 153, 0.18);
+  color: var(--data-2);
+  text-decoration: none;
+  border-radius: 2px;
+  padding: 1px 3px;
+  margin: 0 1px;
+}
+
+:root[data-theme="light"] .detail-text del {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+}
+
+:root[data-theme="light"] .detail-text ins {
+  background: rgba(16, 185, 129, 0.18);
+  color: #047857;
+}
+
+/* 差异视图三态切换 tab */
+.detail-tabs {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 5px;
+  padding: 2px;
+  gap: 1px;
+}
+
+.diff-tab {
+  background: transparent;
+  border: none;
+  color: var(--fg-dim);
+  font-size: 11px;
+  padding: 4px 9px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  transition: background 80ms, color 80ms;
+}
+
+.diff-tab:hover { color: var(--fg); }
+
+.diff-tab[aria-selected="true"] {
+  background: var(--bg-elevated);
+  color: var(--fg);
+  box-shadow: 0 0 0 0.5px var(--border), 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="light"] .diff-tab[aria-selected="true"] {
+  box-shadow: 0 0 0 0.5px var(--border), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+/* 卡片头部「已后处理」标签 */
+.modified-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  background: rgba(52, 211, 153, 0.13);
+  color: var(--data-2);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.modified-tag::before {
+  content: "✦";
+  font-size: 9px;
+}
+
+:root[data-theme="light"] .modified-tag {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
 /* 搜索时让卡片预览不再截断成一行，方便看上下文 */
 .recent-list.in-search .recent-text {
   -webkit-line-clamp: unset;
