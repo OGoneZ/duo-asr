@@ -2,6 +2,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+import asyncio
+import socket
 import tempfile
 import os
 import time
@@ -11,6 +13,9 @@ from logger import setup_logger
 import model
 
 logger = setup_logger(__name__)
+
+_PTR_CACHE_TTL_SECONDS = 300
+_ptr_cache: dict[str, tuple[str, float]] = {}
 
 
 @asynccontextmanager
@@ -40,6 +45,37 @@ def _is_allowed_client_ip(client_ip: str) -> bool:
     return client_ip in {"127.0.0.1", "::1"} or client_ip.startswith("10.0.0.")
 
 
+def _get_real_client_ip(request: Request) -> str:
+    # 走 Caddy 反代时 request.client.host 是 Caddy 的 10.0.0.1，
+    # 真正的 peer IP 在 X-Forwarded-For 里（Caddy 默认会加）。
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host
+
+
+async def _resolve_peer_name(ip: str) -> str:
+    # 依赖系统 resolver —— macmini 上 WG 已把 DNS 指到 10.0.0.1（CoreDNS）。
+    # 失败一律回落到 IP 本身，不影响业务。
+    if ip in {"127.0.0.1", "::1"}:
+        return "local"
+    now = time.time()
+    cached = _ptr_cache.get(ip)
+    if cached and cached[1] > now:
+        return cached[0]
+    try:
+        host, _, _ = await asyncio.to_thread(socket.gethostbyaddr, ip)
+        name = host.removesuffix(".").removesuffix(".wg") or ip
+    except (OSError, socket.herror):
+        name = ip
+    _ptr_cache[ip] = (name, now + _PTR_CACHE_TTL_SECONDS)
+    return name
+
+
+def _format_client(name: str, ip: str) -> str:
+    return ip if name == ip else f"{name} ({ip})"
+
+
 @app.exception_handler(ASRServerError)
 async def handle_service_error(request: Request, exc: ASRServerError):
     status_code = 503 if isinstance(exc, ModelLoadError) else 500
@@ -67,11 +103,13 @@ async def handle_unexpected_error(request: Request, exc: Exception):
 # 只允许 10.0.0.0/24 网段和本地访问
 @app.middleware("http")
 async def restrict_ip(request: Request, call_next):
-    client_ip = request.client.host
-    logger.info(f"请求来源 IP: {client_ip}")
+    client_ip = _get_real_client_ip(request)
+    # 名单仍用数字 IP 判定，避免 XFF 被伪造绕过
     if not _is_allowed_client_ip(client_ip):
         logger.warning(f"拒绝非授权网段访问: {client_ip}")
         return JSONResponse({"error": "Forbidden"}, status_code=403)
+    client_label = _format_client(await _resolve_peer_name(client_ip), client_ip)
+    logger.info(f"请求来源: {client_label}")
     return await call_next(request)
 
 
