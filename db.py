@@ -146,16 +146,33 @@ def query_clients() -> list[str]:
     return [r["client"] for r in rows]
 
 
-def query_recent(limit: int, offset: int = 0, q: str | None = None) -> list[dict]:
-    """最近转录列表。q 非空时按文本模糊搜索（text_final / text_raw）。"""
-    where = ""
+def query_recent(
+    limit: int,
+    offset: int = 0,
+    q: str | None = None,
+    client: str | None = None,
+    since_days: int | None = None,
+) -> list[dict]:
+    """最近转录列表。
+    q          文本模糊搜索（匹配 text_final 或 text_raw）
+    client     按 client_host 过滤
+    since_days 只看最近 N 天（按 created_at）
+    """
+    conds: list[str] = []
     params: list = []
     if q:
-        # 转义 LIKE 通配符，让 % _ 按字面量搜
         esc = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         like = f"%{esc}%"
-        where = "WHERE (text_final LIKE ? ESCAPE '\\' OR text_raw LIKE ? ESCAPE '\\')"
-        params = [like, like]
+        conds.append("(text_final LIKE ? ESCAPE '\\' OR text_raw LIKE ? ESCAPE '\\')")
+        params += [like, like]
+    if client and client != "all":
+        conds.append("client_host = ?")
+        params.append(client)
+    if since_days is not None and since_days > 0:
+        conds.append("created_at >= datetime('now', ?)")
+        params.append(f"-{since_days} days")
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+
     with _connect() as conn:
         rows = conn.execute(
             f"""

@@ -110,6 +110,18 @@
         </svg>
         <input type="search" id="history-search" placeholder="搜索转录内容…" autocomplete="off">
         <button class="search-clear" id="history-search-clear" type="button" aria-label="清空" hidden>×</button>
+        <div class="search-filters">
+          <select id="history-since" class="filter-select">
+            <option value="">全部时间</option>
+            <option value="1">最近 24 小时</option>
+            <option value="7">最近 7 天</option>
+            <option value="30">最近 30 天</option>
+            <option value="90">最近 90 天</option>
+          </select>
+          <select id="history-client" class="filter-select">
+            <option value="all">全部客户端</option>
+          </select>
+        </div>
       </div>
       <ul class="recent-list" id="recent-list"></ul>
       <div class="load-more">

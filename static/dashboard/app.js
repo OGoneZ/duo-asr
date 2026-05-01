@@ -152,7 +152,10 @@ function syncRoute() {
   });
 
   if (view === "home") loadHome();
-  else if (view === "history") loadHistory(true);
+  else if (view === "history") {
+    loadHistoryClientOptions();
+    loadHistory(true);
+  }
 }
 
 // ---------- 首页 ----------
@@ -359,6 +362,16 @@ const PAGE_SIZE = 50;
 let historyOffset = 0;
 let historyHasMore = true;
 let historyQuery = "";
+let historyClient = "all";   // "all" 或具体 client_host
+let historySinceDays = null; // null=全部时间；数字=最近 N 天
+
+function buildHistoryParams() {
+  const p = new URLSearchParams({ n: PAGE_SIZE, offset: historyOffset });
+  if (historyQuery) p.set("q", historyQuery);
+  if (historyClient && historyClient !== "all") p.set("client", historyClient);
+  if (historySinceDays) p.set("since_days", historySinceDays);
+  return p.toString();
+}
 
 async function loadHistory(reset = true) {
   if (reset) {
@@ -368,10 +381,7 @@ async function loadHistory(reset = true) {
   }
   if (!historyHasMore) return;
 
-  const qParam = historyQuery ? `&q=${encodeURIComponent(historyQuery)}` : "";
-  const items = await fetchJSON(
-    `/api/stats/recent?n=${PAGE_SIZE}&offset=${historyOffset}${qParam}`
-  );
+  const items = await fetchJSON(`/api/stats/recent?${buildHistoryParams()}`);
   appendHistoryItems(items);
   historyOffset += items.length;
   historyHasMore = items.length === PAGE_SIZE;
@@ -380,14 +390,35 @@ async function loadHistory(reset = true) {
   btn.disabled = !historyHasMore;
   btn.textContent = historyHasMore ? "加载更多" : "没有更多了";
 
+  const hasFilter = historyQuery || historyClient !== "all" || historySinceDays;
   const ul = document.getElementById("recent-list");
-  if (historyOffset === 0 && historyQuery) {
-    ul.innerHTML = `<li class="muted" style="padding:14px">没有匹配「${escape(historyQuery)}」的记录。</li>`;
+  if (historyOffset === 0 && hasFilter) {
+    ul.innerHTML = `<li class="muted" style="padding:14px">没有匹配的记录。</li>`;
   }
+
+  const parts = [];
+  if (historyQuery) parts.push(`「${historyQuery}」`);
+  if (historyClient !== "all") parts.push(historyClient);
+  if (historySinceDays) parts.push(`近 ${historySinceDays} 天`);
   document.getElementById("history-count").textContent =
-    historyQuery
-      ? `匹配「${historyQuery}」: ${historyOffset} 条`
+    parts.length
+      ? `${parts.join(" · ")} → ${historyOffset} 条`
       : `已加载 ${historyOffset} 条`;
+}
+
+async function loadHistoryClientOptions() {
+  // 复用首页已有的客户端列表接口
+  const list = await fetchJSON("/api/stats/clients");
+  const sel = document.getElementById("history-client");
+  // 保留第一个 option（全部），其他重建
+  while (sel.options.length > 1) sel.remove(1);
+  for (const c of list) {
+    const opt = document.createElement("option");
+    opt.value = c;
+    opt.textContent = c;
+    sel.appendChild(opt);
+  }
+  sel.value = historyClient;
 }
 
 function appendHistoryItems(items) {
@@ -595,6 +626,17 @@ document.addEventListener("DOMContentLoaded", () => {
     historyQuery = "";
     loadHistory(true);
     searchInput.focus();
+  });
+
+  // 时间 / 客户端筛选下拉
+  document.getElementById("history-since").addEventListener("change", (e) => {
+    const v = e.target.value;
+    historySinceDays = v ? parseInt(v, 10) : null;
+    loadHistory(true);
+  });
+  document.getElementById("history-client").addEventListener("change", (e) => {
+    historyClient = e.target.value || "all";
+    loadHistory(true);
   });
 
   // 主题切换

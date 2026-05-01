@@ -258,8 +258,10 @@ async def stats_recent(
     n: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     q: str | None = Query(None),
+    client: str | None = Query(None),
+    since_days: int | None = Query(None, ge=1, le=3650),
 ):
-    return db.query_recent(n, offset, q=q)
+    return db.query_recent(n, offset, q=q, client=client, since_days=since_days)
 
 
 @app.get("/api/recordings/{rec_id}")
