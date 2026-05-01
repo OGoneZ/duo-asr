@@ -223,8 +223,8 @@ async def health():
 
 
 @app.get("/api/stats/summary")
-async def stats_summary():
-    s = db.query_summary()
+async def stats_summary(client: str | None = Query(None)):
+    s = db.query_summary(client)
     duration = s.get("total_duration_sec") or 0
     chars = s.get("total_chars") or 0
     s["chars_per_minute"] = round(chars * 60 / duration, 1) if duration > 0 else 0
@@ -232,8 +232,16 @@ async def stats_summary():
 
 
 @app.get("/api/stats/daily")
-async def stats_daily(days: int = Query(30, ge=1, le=365)):
-    return db.query_daily(days)
+async def stats_daily(
+    days: int = Query(30, ge=1, le=365),
+    client: str | None = Query(None),
+):
+    return db.query_daily(days, client)
+
+
+@app.get("/api/stats/clients")
+async def stats_clients():
+    return db.query_clients()
 
 
 @app.get("/api/stats/by-client")

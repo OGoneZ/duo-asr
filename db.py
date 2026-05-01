@@ -67,11 +67,19 @@ def get_by_id(rec_id: int) -> dict | None:
     return dict(row) if row else None
 
 
-def query_summary() -> dict:
+def _client_filter(client: str | None) -> tuple[str, list]:
+    """生成 'AND client_host = ?' 片段；client 为 None / 'all' 时返回空过滤。"""
+    if not client or client == "all":
+        return "", []
+    return "AND client_host = ?", [client]
+
+
+def query_summary(client: str | None = None) -> dict:
     """累计统计：总记录、总字数、总击键、总时长。仅成功条目计入正向统计。"""
+    flt, params = _client_filter(client)
     with _connect() as conn:
         row = conn.execute(
-            """
+            f"""
             SELECT
                 COUNT(*)                            AS total_count,
                 COALESCE(SUM(char_count), 0)        AS total_chars,
@@ -81,22 +89,25 @@ def query_summary() -> dict:
                 MIN(created_at)                     AS first_at,
                 MAX(created_at)                     AS last_at
             FROM transcriptions
-            WHERE error IS NULL
-            """
+            WHERE error IS NULL {flt}
+            """,
+            params,
         ).fetchone()
         err_count = conn.execute(
-            "SELECT COUNT(*) AS c FROM transcriptions WHERE error IS NOT NULL"
+            f"SELECT COUNT(*) AS c FROM transcriptions WHERE error IS NOT NULL {flt}",
+            params,
         ).fetchone()["c"]
     out = dict(row)
     out["error_count"] = err_count
     return out
 
 
-def query_daily(days: int) -> list[dict]:
+def query_daily(days: int, client: str | None = None) -> list[dict]:
     """近 N 天每日聚合（按本地日期）。"""
+    flt, params = _client_filter(client)
     with _connect() as conn:
         rows = conn.execute(
-            """
+            f"""
             SELECT
                 DATE(created_at, 'localtime')           AS day,
                 COUNT(*)                                AS count,
@@ -106,12 +117,28 @@ def query_daily(days: int) -> list[dict]:
             FROM transcriptions
             WHERE error IS NULL
               AND created_at >= datetime('now', ?)
+              {flt}
             GROUP BY day
             ORDER BY day
             """,
-            (f"-{days} days",),
+            [f"-{days} days", *params],
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+def query_clients() -> list[str]:
+    """已知出现过的客户端列表（按近期活跃度排序）。"""
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT client_host AS client, MAX(created_at) AS last
+            FROM transcriptions
+            WHERE error IS NULL AND client_host IS NOT NULL
+            GROUP BY client_host
+            ORDER BY last DESC
+            """
+        ).fetchall()
+    return [r["client"] for r in rows]
 
 
 def query_recent(limit: int, offset: int = 0) -> list[dict]:

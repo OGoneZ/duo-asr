@@ -1,5 +1,6 @@
 // ---------- 工具 ----------
 const fmtNum = (n) => (n ?? 0).toLocaleString();
+
 const fmtDuration = (sec) => {
   if (!sec) return "0 分";
   const h = Math.floor(sec / 3600);
@@ -7,12 +8,20 @@ const fmtDuration = (sec) => {
   if (h > 0) return `${h} 时 ${m} 分`;
   return `${m} 分钟`;
 };
+
 const fmtTime = (iso) => {
   if (!iso) return "—";
   const d = new Date(iso);
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
-const fmtMs = (ms) => (ms ? `${Math.round(ms)} ms` : "—");
+
+const fmtSeconds = (ms) => {
+  if (!ms) return "—";
+  const sec = ms / 1000;
+  if (sec < 1) return sec.toFixed(2) + " s";
+  if (sec < 10) return sec.toFixed(2) + " s";
+  return sec.toFixed(1) + " s";
+};
 
 const escape = (s) =>
   String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -23,10 +32,14 @@ async function fetchJSON(url) {
   return r.json();
 }
 
-// ---------- 路由（hash-based） ----------
+// ---------- 状态 ----------
 const VIEWS = ["home", "history"];
 let currentView = "home";
+let currentDays = 30;
+let currentClient = "all";    // "all" 或具体 client_host
+let knownClients = [];
 
+// ---------- 路由 ----------
 function syncRoute() {
   const hash = location.hash.replace(/^#\//, "") || "home";
   const view = VIEWS.includes(hash) ? hash : "home";
@@ -41,163 +54,188 @@ function syncRoute() {
   });
 
   if (view === "home") loadHome();
-  else if (view === "history") loadHistory();
+  else if (view === "history") loadHistory(true);
 }
 
 // ---------- 首页 ----------
 let dailyChart = null;
-let clientChart = null;
-let currentDays = 30;
 
 async function loadHome() {
-  await Promise.all([loadSummary(), loadDaily(currentDays), loadByClient(currentDays)]);
+  // 客户端列表先加载，再渲染选择器与数据
+  await loadClients();
+  await Promise.all([loadSummary(), loadDaily()]);
+}
+
+async function loadClients() {
+  const clients = await fetchJSON("/api/stats/clients");
+  // 注意：clients 不包括 error 记录里的 client；这是有意的（统计聚焦成功转录）
+  if (JSON.stringify(clients) === JSON.stringify(knownClients)) return;
+  knownClients = clients;
+  renderClientSwitch();
+}
+
+function renderClientSwitch() {
+  const sw = document.getElementById("client-switch");
+  const opts = [{ key: "all", label: "全部" }, ...knownClients.map((c) => ({ key: c, label: c }))];
+  sw.innerHTML = opts
+    .map((o) => `<button data-client="${escape(o.key)}"${o.key === currentClient ? ' class="active"' : ""}>${escape(o.label)}</button>`)
+    .join("");
+  sw.querySelectorAll("button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      currentClient = btn.dataset.client;
+      sw.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
+      loadSummary();
+      loadDaily();
+    });
+  });
+}
+
+function clientQuery() {
+  return currentClient && currentClient !== "all" ? `&client=${encodeURIComponent(currentClient)}` : "";
 }
 
 async function loadSummary() {
-  const s = await fetchJSON("/api/stats/summary");
+  const s = await fetchJSON(`/api/stats/summary?_=1${clientQuery()}`);
   document.getElementById("stat-chars").textContent = fmtNum(s.total_chars);
   document.getElementById("stat-keystrokes").textContent = fmtNum(s.total_keystrokes);
   document.getElementById("stat-duration").textContent = fmtDuration(s.total_duration_sec);
   document.getElementById("stat-cpm").textContent = s.chars_per_minute || "—";
-  document.getElementById("stat-inference").textContent = fmtMs(s.avg_inference_ms);
+  document.getElementById("stat-inference").textContent = fmtSeconds(s.avg_inference_ms);
+
   document.getElementById("stat-count").textContent = `${fmtNum(s.total_count)} 次转录`;
-  if (s.error_count > 0) {
-    document.getElementById("stat-error-count").textContent = `+${s.error_count} 次失败`;
-  } else {
-    document.getElementById("stat-error-count").textContent = "";
-  }
-  if (s.first_at) {
-    document.getElementById("stat-period").textContent = `自 ${s.first_at.slice(0, 10)}`;
-  }
+  const errEl = document.getElementById("stat-error-count");
+  errEl.textContent = s.error_count > 0 ? `+${s.error_count} 次失败` : "";
+  errEl.className = "card-sub" + (s.error_count > 0 ? " card-sub-error" : "");
+
+  document.getElementById("stat-period").textContent = s.first_at
+    ? `自 ${s.first_at.slice(0, 10)}`
+    : "";
   document.getElementById("last-update").textContent =
     `更新 ${new Date().toLocaleTimeString()}`;
 }
 
-async function loadDaily(days) {
-  const data = await fetchJSON(`/api/stats/daily?days=${days}`);
+async function loadDaily() {
+  const data = await fetchJSON(`/api/stats/daily?days=${currentDays}${clientQuery()}`);
   const map = new Map(data.map((d) => [d.day, d]));
   const labels = [];
   const chars = [];
   const durations = [];
   const today = new Date();
-  for (let i = days - 1; i >= 0; i--) {
+  for (let i = currentDays - 1; i >= 0; i--) {
     const dt = new Date(today);
     dt.setDate(today.getDate() - i);
     const key = dt.toISOString().slice(0, 10);
-    labels.push(key.slice(5));
+    labels.push(currentDays > 30 ? key.slice(5) : key.slice(5));
     const row = map.get(key);
     chars.push(row ? row.chars : 0);
-    durations.push(row ? Math.round(row.duration_sec / 60) : 0);
+    durations.push(row ? +(row.duration_sec / 60).toFixed(1) : 0);
   }
+
+  // Y 轴自适应：根据数据自身计算上下界，让小波动也清晰可见
+  const niceRange = (vals) => {
+    const filtered = vals.filter((v) => v > 0);
+    if (filtered.length === 0) return { min: 0, max: 1 };
+    const mx = Math.max(...filtered);
+    const mn = Math.min(...filtered);
+    const span = mx - mn;
+    // 若数据基本"平"，至少给出 30% 上下浮动空间
+    if (span < mx * 0.1) {
+      return { min: Math.max(0, mn - mx * 0.3), max: mx * 1.15 };
+    }
+    return { min: Math.max(0, mn - span * 0.3), max: mx + span * 0.2 };
+  };
+
+  const charsRange = niceRange(chars);
+  const durRange = niceRange(durations);
 
   const ctx = document.getElementById("daily-chart").getContext("2d");
   if (dailyChart) dailyChart.destroy();
+
+  const cs = getComputedStyle(document.documentElement);
+  const fg = cs.getPropertyValue("--fg-dim").trim();
+  const grid = cs.getPropertyValue("--border-soft").trim();
+  const data1 = cs.getPropertyValue("--data-1").trim();
+  const data2 = cs.getPropertyValue("--data-2").trim();
+
   dailyChart = new Chart(ctx, {
-    type: "bar",
+    type: "line",
     data: {
       labels,
       datasets: [
         {
-          type: "bar",
           label: "字数",
           data: chars,
-          backgroundColor: "rgba(94, 179, 255, 0.65)",
-          borderRadius: 3,
+          borderColor: data1,
+          backgroundColor: data1 + "22",
+          tension: 0.35,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          borderWidth: 2,
+          fill: true,
           yAxisID: "y",
         },
         {
-          type: "line",
           label: "时长(分)",
           data: durations,
-          borderColor: "#6bd97e",
-          backgroundColor: "rgba(107, 217, 126, 0.1)",
-          tension: 0.3,
-          pointRadius: 2,
-          yAxisID: "y1",
-        },
-      ],
-    },
-    options: chartCommonOptions({ leftLabel: "字数", rightLabel: "时长(分)" }),
-  });
-}
-
-async function loadByClient(days) {
-  const data = await fetchJSON(`/api/stats/by-client?days=${days}`);
-  const labels = data.map((d) => d.client);
-  const chars = data.map((d) => d.chars);
-
-  const ctx = document.getElementById("client-chart").getContext("2d");
-  if (clientChart) clientChart.destroy();
-
-  if (data.length === 0) {
-    return; // 让 canvas 留空
-  }
-
-  const palette = ["#5eb3ff", "#6bd97e", "#ffb454", "#ff7b72", "#bd93f9", "#8be9fd", "#f1fa8c"];
-  clientChart = new Chart(ctx, {
-    type: "doughnut",
-    data: {
-      labels,
-      datasets: [
-        {
-          data: chars,
-          backgroundColor: labels.map((_, i) => palette[i % palette.length]),
-          borderColor: "#1a1f29",
+          borderColor: data2,
+          backgroundColor: "transparent",
+          tension: 0.35,
+          pointRadius: 0,
+          pointHoverRadius: 4,
           borderWidth: 2,
+          borderDash: [4, 3],
+          fill: false,
+          yAxisID: "y1",
         },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
       plugins: {
         legend: {
-          position: "right",
-          labels: { color: "#9ba3af", font: { size: 12 }, boxWidth: 10 },
+          align: "end",
+          labels: { color: fg, usePointStyle: true, pointStyle: "rectRounded", boxWidth: 6, boxHeight: 6 },
         },
         tooltip: {
-          callbacks: {
-            label: (ctx) => {
-              const row = data[ctx.dataIndex];
-              const min = Math.round(row.duration_sec / 60);
-              return `${row.client}: ${fmtNum(row.chars)} 字 · ${min} 分 · ${row.count} 次`;
-            },
-          },
+          backgroundColor: "#0c0c0d",
+          borderColor: "#1f1f23",
+          borderWidth: 1,
+          titleColor: "#fafafa",
+          bodyColor: "#a1a1aa",
+          padding: 10,
+          cornerRadius: 6,
+          displayColors: true,
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: fg, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 },
+          grid: { display: false },
+          border: { color: grid },
+        },
+        y: {
+          position: "left",
+          min: charsRange.min,
+          max: charsRange.max,
+          ticks: { color: fg, maxTicksLimit: 5 },
+          grid: { color: grid, drawTicks: false },
+          border: { display: false },
+          title: { display: true, text: "字数", color: fg, font: { size: 11 } },
+        },
+        y1: {
+          position: "right",
+          min: durRange.min,
+          max: durRange.max,
+          ticks: { color: fg, maxTicksLimit: 5 },
+          grid: { display: false },
+          border: { display: false },
+          title: { display: true, text: "时长 (分)", color: fg, font: { size: 11 } },
         },
       },
     },
   });
-}
-
-function chartCommonOptions({ leftLabel, rightLabel }) {
-  return {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        labels: { color: "#9ba3af", usePointStyle: true, pointStyle: "rectRounded" },
-      },
-      tooltip: { mode: "index", intersect: false },
-    },
-    scales: {
-      x: {
-        ticks: { color: "#9ba3af", maxRotation: 0, autoSkip: true },
-        grid: { display: false },
-      },
-      y: {
-        position: "left",
-        ticks: { color: "#9ba3af" },
-        grid: { color: "#2a313e" },
-        title: { display: true, text: leftLabel, color: "#9ba3af" },
-      },
-      y1: {
-        position: "right",
-        ticks: { color: "#9ba3af" },
-        grid: { display: false },
-        title: { display: true, text: rightLabel, color: "#9ba3af" },
-      },
-    },
-  };
 }
 
 // ---------- 历史记录 ----------
@@ -244,7 +282,7 @@ function appendHistoryItems(items) {
       <div class="recent-line">
         <span class="recent-time">${fmtTime(item.created_at)}</span>
         <span class="recent-text">${escape(previewText)}${errorTag}</span>
-        <span class="recent-meta">${item.char_count || 0} 字 · ${durStr} · ${fmtMs(item.inference_ms)}</span>
+        <span class="recent-meta">${item.char_count || 0} 字 · ${durStr} · ${fmtSeconds(item.inference_ms)}</span>
       </div>
       <div class="recent-detail"></div>
     `;
@@ -289,26 +327,24 @@ function toggleDetail(li, item) {
 
 // ---------- 启动 ----------
 document.addEventListener("DOMContentLoaded", () => {
-  // 时段切换（仅首页生效）
   document.querySelectorAll("#period-switch button").forEach((btn) => {
     btn.addEventListener("click", () => {
       document.querySelectorAll("#period-switch button").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       currentDays = parseInt(btn.dataset.days, 10);
-      loadDaily(currentDays);
-      loadByClient(currentDays);
+      loadDaily();
     });
   });
 
-  // 加载更多
   document.getElementById("load-more-btn").addEventListener("click", () => loadHistory(false));
 
-  // 路由
   window.addEventListener("hashchange", syncRoute);
   syncRoute();
 
-  // 自动刷新（仅首页 summary）
   setInterval(() => {
-    if (currentView === "home") loadSummary();
+    if (currentView === "home") {
+      loadClients();
+      loadSummary();
+    }
   }, 30000);
 });

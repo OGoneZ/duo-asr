@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ASR 使用面板</title>
+  <title>ASR Panel</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -17,18 +17,21 @@
         <span class="nav-icon">▤</span> 历史记录
       </a>
     </nav>
-    <div class="sidebar-foot muted" id="last-update"></div>
+    <div class="sidebar-foot" id="last-update"></div>
   </aside>
 
   <main class="content">
-    <!-- 首页：卡片 + 图表 -->
+    <!-- 首页 -->
     <section class="view view-home" data-view="home">
       <header class="view-header">
         <h1>概览</h1>
-        <div class="period-switch" id="period-switch">
-          <button data-days="7">7 天</button>
-          <button data-days="30" class="active">30 天</button>
-          <button data-days="90">90 天</button>
+        <div class="toolbar">
+          <div class="segmented" id="client-switch"></div>
+          <div class="segmented" id="period-switch">
+            <button data-days="7">7 天</button>
+            <button data-days="30" class="active">30 天</button>
+            <button data-days="90">90 天</button>
+          </div>
         </div>
       </header>
 
@@ -36,39 +39,34 @@
         <div class="card">
           <div class="card-label">累计字数</div>
           <div class="card-value" id="stat-chars">—</div>
-          <div class="card-sub muted" id="stat-error-count"></div>
+          <div class="card-sub" id="stat-error-count"></div>
         </div>
         <div class="card">
-          <div class="card-label">节省键盘敲击</div>
+          <div class="card-label">键盘敲击</div>
           <div class="card-value" id="stat-keystrokes">—</div>
-          <div class="card-sub muted">中文按拼音展开</div>
+          <div class="card-sub">中文按拼音展开</div>
         </div>
         <div class="card">
-          <div class="card-label">累计说话时长</div>
+          <div class="card-label">说话时长</div>
           <div class="card-value" id="stat-duration">—</div>
-          <div class="card-sub muted" id="stat-count"></div>
+          <div class="card-sub" id="stat-count"></div>
         </div>
         <div class="card">
-          <div class="card-label">语速 (字/分)</div>
+          <div class="card-label">语速 字/分</div>
           <div class="card-value" id="stat-cpm">—</div>
-          <div class="card-sub muted" id="stat-period"></div>
+          <div class="card-sub" id="stat-period"></div>
         </div>
         <div class="card">
-          <div class="card-label">平均推理耗时</div>
+          <div class="card-label">推理耗时</div>
           <div class="card-value" id="stat-inference">—</div>
-          <div class="card-sub muted">每次请求</div>
+          <div class="card-sub">每次平均</div>
         </div>
       </div>
 
-      <div class="chart-grid">
-        <div class="chart-card">
-          <h2>每日趋势</h2>
-          <div class="chart-wrap"><canvas id="daily-chart"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <h2>按客户端聚合</h2>
-          <div class="chart-wrap"><canvas id="client-chart"></canvas></div>
-        </div>
+      <div class="chart-section">
+        <h2>每日趋势</h2>
+        <span class="muted" id="chart-subtitle">字数与说话时长</span>
+        <div class="chart-wrap"><canvas id="daily-chart"></canvas></div>
       </div>
     </section>
 
