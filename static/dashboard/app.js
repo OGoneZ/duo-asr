@@ -68,26 +68,41 @@ async function loadHome() {
 
 async function loadClients() {
   const clients = await fetchJSON("/api/stats/clients");
-  // 注意：clients 不包括 error 记录里的 client；这是有意的（统计聚焦成功转录）
   if (JSON.stringify(clients) === JSON.stringify(knownClients)) return;
   knownClients = clients;
-  renderClientSwitch();
+  renderClientDropdown();
 }
 
-function renderClientSwitch() {
-  const sw = document.getElementById("client-switch");
+function renderClientDropdown() {
+  const menu = document.getElementById("client-menu");
   const opts = [{ key: "all", label: "全部" }, ...knownClients.map((c) => ({ key: c, label: c }))];
-  sw.innerHTML = opts
-    .map((o) => `<button data-client="${escape(o.key)}"${o.key === currentClient ? ' class="active"' : ""}>${escape(o.label)}</button>`)
+  menu.innerHTML = opts
+    .map((o) => `<li data-client="${escape(o.key)}"${o.key === currentClient ? ' class="selected"' : ""}>${escape(o.label)}</li>`)
     .join("");
-  sw.querySelectorAll("button").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      currentClient = btn.dataset.client;
-      sw.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
+  menu.querySelectorAll("li").forEach((li) => {
+    li.addEventListener("click", (e) => {
+      e.stopPropagation();
+      currentClient = li.dataset.client;
+      document.getElementById("client-toggle-label").textContent = li.textContent;
+      menu.querySelectorAll("li").forEach((x) => x.classList.toggle("selected", x === li));
+      closeDropdown();
       loadSummary();
       loadDaily();
     });
   });
+  // 同步当前选中文本
+  const cur = opts.find((o) => o.key === currentClient) || opts[0];
+  document.getElementById("client-toggle-label").textContent = cur.label;
+}
+
+function openDropdown() {
+  document.getElementById("client-dropdown").classList.add("open");
+  document.getElementById("client-menu").hidden = false;
+}
+
+function closeDropdown() {
+  document.getElementById("client-dropdown").classList.remove("open");
+  document.getElementById("client-menu").hidden = true;
 }
 
 function clientQuery() {
@@ -101,17 +116,21 @@ async function loadSummary() {
   document.getElementById("stat-duration").textContent = fmtDuration(s.total_duration_sec);
   document.getElementById("stat-cpm").textContent = s.chars_per_minute || "—";
   document.getElementById("stat-inference").textContent = fmtSeconds(s.avg_inference_ms);
+  document.getElementById("stat-avg-dur").textContent = s.avg_duration_sec
+    ? `${s.avg_duration_sec} s`
+    : "—";
 
   document.getElementById("stat-count").textContent = `${fmtNum(s.total_count)} 次转录`;
-  const errEl = document.getElementById("stat-error-count");
-  errEl.textContent = s.error_count > 0 ? `+${s.error_count} 次失败` : "";
-  errEl.className = "card-sub" + (s.error_count > 0 ? " card-sub-error" : "");
-
   document.getElementById("stat-period").textContent = s.first_at
     ? `自 ${s.first_at.slice(0, 10)}`
     : "";
   document.getElementById("last-update").textContent =
     `更新 ${new Date().toLocaleTimeString()}`;
+}
+
+// 本地日期 YYYY-MM-DD —— 与后端 DATE(..., 'localtime') 输出一致
+function localDateKey(dt) {
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
 }
 
 async function loadDaily() {
@@ -124,8 +143,8 @@ async function loadDaily() {
   for (let i = currentDays - 1; i >= 0; i--) {
     const dt = new Date(today);
     dt.setDate(today.getDate() - i);
-    const key = dt.toISOString().slice(0, 10);
-    labels.push(currentDays > 30 ? key.slice(5) : key.slice(5));
+    const key = localDateKey(dt);
+    labels.push(key.slice(5));
     const row = map.get(key);
     chars.push(row ? row.chars : 0);
     durations.push(row ? +(row.duration_sec / 60).toFixed(1) : 0);
@@ -337,6 +356,16 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("load-more-btn").addEventListener("click", () => loadHistory(false));
+
+  // 客户端下拉
+  document.getElementById("client-toggle").addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = document.getElementById("client-dropdown").classList.contains("open");
+    isOpen ? closeDropdown() : openDropdown();
+  });
+  document.addEventListener("click", (e) => {
+    if (!document.getElementById("client-dropdown").contains(e.target)) closeDropdown();
+  });
 
   window.addEventListener("hashchange", syncRoute);
   syncRoute();

@@ -26,7 +26,13 @@
       <header class="view-header">
         <h1>概览</h1>
         <div class="toolbar">
-          <div class="segmented" id="client-switch"></div>
+          <div class="dropdown" id="client-dropdown">
+            <button class="dropdown-toggle" id="client-toggle">
+              <span id="client-toggle-label">全部</span>
+              <span class="dropdown-caret">▾</span>
+            </button>
+            <ul class="dropdown-menu" id="client-menu" hidden></ul>
+          </div>
           <div class="segmented" id="period-switch">
             <button data-days="7">7 天</button>
             <button data-days="30" class="active">30 天</button>
@@ -39,7 +45,7 @@
         <div class="card">
           <div class="card-label">累计字数</div>
           <div class="card-value" id="stat-chars">—</div>
-          <div class="card-sub" id="stat-error-count"></div>
+          <div class="card-sub" id="stat-count"></div>
         </div>
         <div class="card">
           <div class="card-label">键盘敲击</div>
@@ -49,12 +55,17 @@
         <div class="card">
           <div class="card-label">说话时长</div>
           <div class="card-value" id="stat-duration">—</div>
-          <div class="card-sub" id="stat-count"></div>
+          <div class="card-sub" id="stat-period"></div>
+        </div>
+        <div class="card">
+          <div class="card-label">平均一条</div>
+          <div class="card-value" id="stat-avg-dur">—</div>
+          <div class="card-sub">每次平均时长</div>
         </div>
         <div class="card">
           <div class="card-label">语速 字/分</div>
           <div class="card-value" id="stat-cpm">—</div>
-          <div class="card-sub" id="stat-period"></div>
+          <div class="card-sub">中文 + 英文</div>
         </div>
         <div class="card">
           <div class="card-label">推理耗时</div>

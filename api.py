@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import asyncio
 import socket
@@ -166,7 +166,8 @@ async def transcribe(request: Request, file: UploadFile = File(...)):
     duration = _audio_duration(abs_path)
 
     record_base = {
-        "created_at": datetime.now().isoformat(timespec="seconds"),
+        # 存 UTC ISO（带 Z），SQLite 用 datetime(..., 'localtime') 正确转本地时区
+        "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "audio_filename": file.filename,
         "audio_path": rel_path,
         "audio_size": size,
@@ -227,7 +228,9 @@ async def stats_summary(client: str | None = Query(None)):
     s = db.query_summary(client)
     duration = s.get("total_duration_sec") or 0
     chars = s.get("total_chars") or 0
+    count = s.get("total_count") or 0
     s["chars_per_minute"] = round(chars * 60 / duration, 1) if duration > 0 else 0
+    s["avg_duration_sec"] = round(duration / count, 1) if count > 0 else 0
     return s
 
 
