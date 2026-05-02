@@ -2323,6 +2323,45 @@ audio {
   gap: 12px;
   flex-wrap: wrap;
 }
+.model-card-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.model-actions {
+  display: flex;
+  gap: 6px;
+}
+.model-act-btn {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: transparent;
+  color: var(--fg-mid);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.model-act-btn:hover:not(:disabled) {
+  color: var(--fg-strong);
+  border-color: var(--hl);
+}
+.model-act-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.model-act-delete:hover:not(:disabled) {
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.08);
+}
+.model-act-activate {
+  border-color: var(--hl);
+  color: var(--hl);
+}
+.model-act-activate:hover:not(:disabled) {
+  background: var(--hl-soft);
+}
 .model-card-title {
   display: flex;
   align-items: center;

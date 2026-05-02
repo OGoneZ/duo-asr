@@ -1617,13 +1617,51 @@ function renderModels(items, active) {
         <div class="model-card-title">
           <span class="model-name">${escape(m.name)}</span>
           ${m.is_current ? '<span class="model-badge model-badge-current">当前激活</span>' : ""}
-          ${m.valid ? "" : '<span class="model-badge model-badge-warn">缺少 config.json</span>'}
+          ${m.valid ? "" : '<span class="model-badge model-badge-warn">无 config 文件</span>'}
         </div>
-        <span class="model-size">${escape(m.size_human)}</span>
+        <div class="model-card-right">
+          <span class="model-size">${escape(m.size_human)}</span>
+          <div class="model-actions">
+            ${m.is_current ? "" : `<button class="model-act-btn model-act-delete" data-action="delete" data-name="${escape(m.name)}">删除</button>`}
+          </div>
+        </div>
       </div>
       <div class="model-card-path" title="${escape(m.path)}">${escape(m.path)}</div>
     </li>
   `).join("");
+  // 事件委托：删除按钮
+  el.onclick = handleModelAction;
+}
+
+async function handleModelAction(e) {
+  const btn = e.target.closest("[data-action]");
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const name = btn.dataset.name;
+  if (action === "delete") return deleteModel(name, btn);
+  if (action === "activate") return activateModel(name, btn);
+}
+
+async function deleteModel(name, btn) {
+  if (!confirm(`确认删除模型「${name}」？此操作会删除整个目录，无法撤销。`)) return;
+  btn.disabled = true;
+  btn.textContent = "删除中…";
+  try {
+    const r = await fetch(`/api/models/${encodeURIComponent(name)}`, { method: "DELETE" });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      showModelsError(`删除失败：${body.error || r.status}`);
+      btn.disabled = false;
+      btn.textContent = "删除";
+      return;
+    }
+    hideModelsError();
+    await loadModels();
+  } catch (err) {
+    showModelsError(`请求失败：${err.message || err}`);
+    btn.disabled = false;
+    btn.textContent = "删除";
+  }
 }
 
 function showModelsError(msg) {

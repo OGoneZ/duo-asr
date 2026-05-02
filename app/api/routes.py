@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+import shutil
 import time
 import tomllib
 import uuid
@@ -288,3 +289,34 @@ async def get_model_download(task_id: str):
 async def get_model_downloads():
     """最近的下载任务列表（含进行中和已完成）。"""
     return {"items": [t.to_dict() for t in downloader.list_recent()]}
+
+
+@router.delete("/api/models/{name}")
+async def delete_model(name: str):
+    """删除一个已下载的模型目录。
+
+    安全约束：
+      - 名字不允许 path traversal 字符
+      - 不允许删除当前激活模型
+      - 目标必须确实位于 MODELS_DIR 下（resolve 后比较）
+    """
+    if not name or "/" in name or "\\" in name or name in (".", ".."):
+        raise HTTPException(400, f"非法模型名: {name!r}")
+    if name == config.MODEL_NAME:
+        raise HTTPException(409, "不能删除当前激活的模型，请先切换到其他模型")
+
+    target = (config.MODELS_DIR / name).resolve()
+    try:
+        target.relative_to(config.MODELS_DIR.resolve())
+    except ValueError:
+        raise HTTPException(400, "目标路径不在 models/ 目录下")
+    if not target.is_dir():
+        raise HTTPException(404, f"模型不存在: {name}")
+
+    # 若目录是 symlink，rmtree 会拒；先单独 unlink
+    if target.is_symlink():
+        target.unlink()
+    else:
+        shutil.rmtree(target)
+    logger.info("已删除模型目录: %s", target)
+    return {"ok": True, "deleted": name}
