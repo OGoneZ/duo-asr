@@ -1701,21 +1701,20 @@ function renderVariantRow(v) {
   return `
     <li class="variant-row${v.is_current ? " is-current" : ""}">
       <div class="variant-main">
-        <span class="variant-label">${escape(v.label)}</span>
+        <span class="variant-label" title="${escape(v.model_id)}">${escape(v.label)}</span>
         ${paramsBadge}
         ${precisionBadge}
         <span class="model-badge model-badge-backend">${escape(v.backend)}</span>
         ${stateBadge}
-        <span class="variant-summary">${escape(v.summary || "")}</span>
       </div>
       <div class="variant-aside">
         <div class="variant-sizes">
-          <span class="model-size">${escape(v.size_human)}</span>
+          <span class="variant-storage">存储约 ${escape(v.size_human)}</span>
           ${vramHint}
         </div>
         ${action}
       </div>
-      <div class="variant-id" title="${escape(v.model_id)}">${escape(v.model_id)}</div>
+      ${v.summary ? `<div class="variant-summary-line">${escape(v.summary)}</div>` : ""}
     </li>
   `;
 }
