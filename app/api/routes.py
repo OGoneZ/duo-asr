@@ -12,7 +12,7 @@ from fastapi import APIRouter, Body, File, HTTPException, Query, Request, Upload
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 import soundfile as sf
 
-from app import config, db, downloader, model, models_registry, stats
+from app import config, db, downloader, model, models_registry, recommended, stats
 from app.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -248,12 +248,28 @@ async def put_hotwords(payload: dict = Body(...)):
 
 @router.get("/api/models")
 async def get_models():
-    """列出 models/ 下已下载的模型 + 当前激活标记。"""
-    items = [m.to_dict() for m in models_registry.list_models()]
+    """列出 models/ 下已下载的模型 + 当前激活标记 + 推荐清单。
+
+    推荐项里 ``downloaded`` 字段标记是否已落到本地（按 model_id 末段做匹配，
+    与 downloader 的默认 target_name 一致）。
+    """
+    downloaded = [m.to_dict() for m in models_registry.list_models()]
+    downloaded_names = {m["name"] for m in downloaded}
+
+    recos = []
+    for r in recommended.RECOMMENDED:
+        d = r.to_dict()
+        target_name = r.model_id.split("/")[-1]
+        d["target_name"] = target_name
+        d["downloaded"] = target_name in downloaded_names
+        d["is_current"] = (target_name == config.MODEL_NAME)
+        recos.append(d)
+
     return {
         "active": config.MODEL_NAME,
         "models_dir": str(config.MODELS_DIR),
-        "items": items,
+        "items": downloaded,
+        "recommended": recos,
     }
 
 

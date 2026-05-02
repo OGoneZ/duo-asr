@@ -2418,6 +2418,118 @@ audio {
   font-size: 12.5px;
 }
 
+.models-section-title {
+  margin: 22px 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+
+.models-recommended .model-rec-card {
+  border-style: solid;
+}
+.models-recommended .model-rec-card.is-downloaded {
+  border-color: rgba(168, 132, 255, 0.4);
+}
+
+.model-badge-backend {
+  background: rgba(168, 132, 255, 0.16);
+  color: var(--hl);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.model-badge-downloaded {
+  background: rgba(168, 132, 255, 0.16);
+  color: var(--hl);
+}
+
+.model-langs {
+  font-size: 11.5px;
+  color: var(--fg-dim);
+  letter-spacing: 0.02em;
+}
+
+.model-rec-summary {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--fg-mid);
+  line-height: 1.55;
+}
+
+.model-act-download {
+  border-color: var(--hl);
+  background: var(--hl);
+  color: white;
+}
+.model-act-download:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.model-custom-download {
+  margin-top: 18px;
+  padding: 12px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  backdrop-filter: blur(12px);
+}
+.model-custom-download summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--fg-mid);
+  user-select: none;
+  list-style: none;
+}
+.model-custom-download summary::before {
+  content: "▸ ";
+  display: inline-block;
+  transition: transform 150ms;
+  margin-right: 4px;
+  color: var(--fg-dim);
+}
+.model-custom-download[open] summary::before {
+  transform: rotate(90deg);
+}
+.model-custom-download .model-download-row {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+}
+.model-custom-download #model-download-id {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  background: transparent;
+  color: var(--fg-strong);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color 150ms;
+}
+.model-custom-download #model-download-id:focus {
+  border-color: var(--hl);
+  box-shadow: 0 0 0 3px rgba(168, 132, 255, 0.15);
+}
+.model-custom-download .model-download-btn {
+  border-color: var(--hl);
+  background: var(--hl);
+  color: white;
+  padding: 9px 22px;
+}
+.model-custom-download .model-download-btn:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+.model-custom-download .model-download-btn:disabled {
+  opacity: 0.6;
+}
+.model-custom-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
 /* 下载面板 */
 .model-download-panel {
   margin: 14px 0 18px;

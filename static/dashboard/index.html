@@ -394,26 +394,8 @@
 
       <p class="hotwords-hint">
         模型放在 <code>models/</code> 目录下。当前激活的模型用绿色边框标记，转录请求都使用它。
-        切换 / 删除将在后续阶段开放。
+        点击推荐区的「下载」即可获取新模型，下载完成后可一键切换。
       </p>
-
-      <div class="model-download-panel">
-        <div class="model-download-row">
-          <div class="model-download-input-wrap">
-            <label class="filter-label" for="model-download-id">从 ModelScope 下载</label>
-            <input type="text" id="model-download-id"
-                   placeholder="例如 iic/SenseVoiceSmall 或 Qwen/Qwen3-ASR-1.7B"
-                   autocomplete="off" spellcheck="false">
-          </div>
-          <button class="filter-reset model-download-btn" id="model-download-btn" type="button">下载</button>
-        </div>
-        <div class="model-download-presets">
-          <span class="model-download-presets-label">快捷选择：</span>
-          <button class="preset-chip" data-id="iic/SenseVoiceSmall">iic/SenseVoiceSmall</button>
-          <button class="preset-chip" data-id="iic/Whisper-large-v3-turbo">iic/Whisper-large-v3-turbo</button>
-          <button class="preset-chip" data-id="Qwen/Qwen3-ASR-1.7B">Qwen/Qwen3-ASR-1.7B</button>
-        </div>
-      </div>
 
       <div id="models-error" class="hotwords-error" hidden></div>
 
@@ -429,7 +411,24 @@
         <div class="model-task-meta" id="model-task-meta"></div>
       </div>
 
+      <h2 class="models-section-title">已下载</h2>
       <ul class="models-list" id="models-list"></ul>
+
+      <h2 class="models-section-title">推荐模型</h2>
+      <ul class="models-list models-recommended" id="models-recommended"></ul>
+
+      <details class="model-custom-download">
+        <summary>自定义下载（输入 ModelScope model_id）</summary>
+        <div class="model-download-row">
+          <input type="text" id="model-download-id"
+                 placeholder="例如 iic/Whisper-large-v3-turbo 或 your-org/your-model"
+                 autocomplete="off" spellcheck="false">
+          <button class="filter-reset model-download-btn" id="model-download-btn" type="button">下载</button>
+        </div>
+        <p class="model-custom-hint">
+          推荐区里没有的模型可以直接输入 ModelScope 上的完整 ID。仅 Qwen3-ASR / FunASR 系列模型保证可加载。
+        </p>
+      </details>
     </section>
 
     <!-- 热词管理页 -->

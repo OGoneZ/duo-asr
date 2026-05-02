@@ -1597,8 +1597,9 @@ async function loadModels() {
   try {
     const data = await fetchJSON("/api/models");
     document.getElementById("models-meta").textContent =
-      `${data.items.length} 个模型 · ${escape(data.models_dir)}`;
+      `${data.items.length} 个已下载 · ${escape(data.models_dir)}`;
     renderModels(data.items, data.active);
+    renderRecommended(data.recommended || []);
   } catch (err) {
     showModelsError(`加载失败：${escape(err.message || err)}`);
     el.innerHTML = "";
@@ -1608,7 +1609,7 @@ async function loadModels() {
 function renderModels(items, active) {
   const el = document.getElementById("models-list");
   if (!items.length) {
-    el.innerHTML = `<li class="models-empty">尚未下载任何模型。下载功能将在后续阶段开放。</li>`;
+    el.innerHTML = `<li class="models-empty">尚未下载任何模型，从下方推荐区选一个开始。</li>`;
     return;
   }
   el.innerHTML = items.map((m) => `
@@ -1630,7 +1631,41 @@ function renderModels(items, active) {
       <div class="model-card-path" title="${escape(m.path)}">${escape(m.path)}</div>
     </li>
   `).join("");
-  // 事件委托：删除按钮
+  // 事件委托：删除/切换按钮
+  el.onclick = handleModelAction;
+}
+
+function renderRecommended(items) {
+  const el = document.getElementById("models-recommended");
+  if (!el) return;
+  if (!items.length) {
+    el.innerHTML = "";
+    return;
+  }
+  el.innerHTML = items.map((r) => `
+    <li class="model-card model-rec-card${r.is_current ? " is-current" : ""}${r.downloaded ? " is-downloaded" : ""}">
+      <div class="model-card-head">
+        <div class="model-card-title">
+          <span class="model-name">${escape(r.name)}</span>
+          <span class="model-badge model-badge-backend">${escape(r.backend)}</span>
+          ${r.languages.length ? `<span class="model-langs">${r.languages.map(escape).join(" · ")}</span>` : ""}
+          ${r.is_current ? '<span class="model-badge model-badge-current">当前激活</span>' : (r.downloaded ? '<span class="model-badge model-badge-downloaded">已下载</span>' : "")}
+        </div>
+        <div class="model-card-right">
+          <span class="model-size">${escape(r.size_human)}</span>
+          <div class="model-actions">
+            ${r.downloaded
+              ? (r.is_current
+                  ? ""
+                  : `<button class="model-act-btn model-act-activate" data-action="activate" data-name="${escape(r.target_name)}">使用此模型</button>`)
+              : `<button class="model-act-btn model-act-download" data-action="download" data-id="${escape(r.model_id)}">下载</button>`}
+          </div>
+        </div>
+      </div>
+      <div class="model-rec-summary">${escape(r.summary)}</div>
+      <div class="model-card-path" title="${escape(r.model_id)}">${escape(r.model_id)}</div>
+    </li>
+  `).join("");
   el.onclick = handleModelAction;
 }
 
@@ -1641,6 +1676,7 @@ async function handleModelAction(e) {
   const name = btn.dataset.name;
   if (action === "delete") return deleteModel(name, btn);
   if (action === "activate") return activateModel(name, btn);
+  if (action === "download") return triggerModelDownload(btn.dataset.id, btn);
 }
 
 async function activateModel(name, btn) {
@@ -1718,19 +1754,13 @@ function setupModelsPage() {
   const input = document.getElementById("model-download-id");
   if (!btn || !input) return;
 
-  btn.addEventListener("click", () => triggerModelDownload(input.value.trim()));
+  btn.addEventListener("click", () => triggerModelDownload(input.value.trim(), btn));
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") triggerModelDownload(input.value.trim());
-  });
-  document.querySelectorAll(".preset-chip").forEach((chip) => {
-    chip.addEventListener("click", () => {
-      input.value = chip.dataset.id;
-      input.focus();
-    });
+    if (e.key === "Enter") triggerModelDownload(input.value.trim(), btn);
   });
 }
 
-async function triggerModelDownload(modelId) {
+async function triggerModelDownload(modelId, sourceBtn = null) {
   if (!modelId) {
     showModelsError("请填写 model_id（如 iic/SenseVoiceSmall）");
     return;
@@ -1740,7 +1770,8 @@ async function triggerModelDownload(modelId) {
     return;
   }
   hideModelsError();
-  const btn = document.getElementById("model-download-btn");
+  const btn = sourceBtn || document.getElementById("model-download-btn");
+  const origLabel = btn.textContent;
   btn.disabled = true;
   btn.textContent = "提交中…";
   try {
@@ -1752,16 +1783,18 @@ async function triggerModelDownload(modelId) {
     const body = await r.json().catch(() => ({}));
     if (!r.ok) {
       showModelsError(`下载失败：${body.error || r.status}`);
+      btn.disabled = false;
+      btn.textContent = origLabel;
       return;
     }
     modelDownloadActiveTaskId = body.task_id;
-    document.getElementById("model-download-id").value = "";
+    const customInput = document.getElementById("model-download-id");
+    if (customInput) customInput.value = "";
     startModelDownloadPolling(body.task_id);
   } catch (err) {
     showModelsError(`请求失败：${err.message || err}`);
-  } finally {
     btn.disabled = false;
-    btn.textContent = "下载";
+    btn.textContent = origLabel;
   }
 }
 
