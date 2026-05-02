@@ -9,10 +9,10 @@
  * ================================================================ */
 
 :root, :root[data-theme="dark"] {
-  /* 基础底层 —— 墨色 + 微暖（避免纯黑冰冷） */
-  --bg:           #0a0a0b;
-  --bg-elevated: rgba(22, 22, 24, 0.70);
-  --bg-solid:    #131315;
+  /* 基础底层 —— 墨灰 + 微暖（不再纯黑，但仍保持夜场氛围） */
+  --bg:           #18181b;
+  --bg-elevated: rgba(34, 34, 38, 0.78);
+  --bg-solid:    #1f1f23;
   --bg-soft:     rgba(255, 253, 247, 0.035);
   --bg-softer:   rgba(255, 253, 247, 0.02);
   --border:      rgba(255, 253, 247, 0.09);
@@ -29,31 +29,45 @@
   --accent:        #fafaf7;
   --accent-soft:   rgba(255, 253, 247, 0.10);
 
-  /* UI 焦点/激活/选中态统一用茶金 —— 与卡片彩色专属色解耦 */
-  --hl:        #d4b896;
-  --hl-soft:   rgba(212, 184, 150, 0.16);
+  /* 焦点/激活/选中态 —— 暖琥珀，与暖底色同源 */
+  --hl:        #d4a574;
+  --hl-soft:   rgba(212, 165, 116, 0.18);
 
   /* 数据色保留差异化（卡片仍各有专属色） */
-  --data-1: #8b8cf8;
-  --data-2: #34d399;
-  --data-3: #fbbf24;
-  --data-4: #f472b6;
-  --data-5: #60a5fa;
-  --data-6: #fb7185;
-  --data-7: #c4b5fd;
+  /* 六色环：紫蓝 / 草绿 / 琥珀 / 玫粉 / 蓝 / 茄紫 / 暖红 / 深青
+   * 每色相互间隔 ≥ 50°，确保 6 张卡片差异度足够 */
+  --data-1: #818cf8;   /* violet 紫蓝 245° */
+  --data-2: #4ade80;   /* green 草绿 145° */
+  --data-3: #fbbf24;   /* amber 琥珀 35° */
+  --data-4: #f472b6;   /* pink 玫粉 335° */
+  --data-5: #60a5fa;   /* sky 天蓝 210° */
+  --data-6: #fb7185;   /* rose 玫红 350° */
+  --data-7: #d946ef;   /* fuchsia 茄紫 295° */
+  --data-8: #22d3ee;   /* cyan 深青 190° */
 
-  /* Aurora —— 极低饱和的"一抹烟"：茶金 + 雾灰青 + 暗酒红
-     alpha 大幅下降，让背景几乎没有"颜色"，只有材质 */
-  --aurora-1: rgba(180, 150, 105, 0.18);   /* 茶金 / 烟琥珀 */
-  --aurora-2: rgba(120, 135, 140, 0.16);   /* 雾灰青 */
-  --aurora-3: rgba(150, 90, 95, 0.14);     /* 暗胭脂 */
+  /* 磨砂玻璃后方光晕 —— 极低饱和、大半径，仅作环境色 */
+  --aurora-1: rgba(170, 145, 240, 0.10);
+  --aurora-2: rgba(255, 180, 160, 0.08);
+  --aurora-3: rgba(140, 180, 230, 0.10);
 
-  /* hero gradient —— 单色调内渐变（暖白 → 茶金），克制 */
-  --hero-gradient: linear-gradient(135deg, #fafaf7 0%, #e6e0d4 50%, #c9b896 100%);
+  /* hero gradient —— 多色冷暖混合，奶油白 → 薄紫 → 粉 → 蜜桃 → 暖金 */
+  --hero-gradient: linear-gradient(135deg,
+    #fafaf7 0%,
+    #d8c8ff 25%,
+    #ffc4d6 50%,
+    #ffd9b8 75%,
+    #f5e0a8 100%);
 
-  /* 状态 */
-  --error:  #f87171;
-  --error-soft: rgba(248, 113, 113, 0.14);
+  /* logo 专属渐变 —— 单独定义，不依赖 data-X，保证两种模式都饱满鲜亮 */
+  --logo-gradient: linear-gradient(135deg,
+    #818cf8 0%,
+    #60a5fa 35%,
+    #f472b6 70%,
+    #fbbf24 100%);
+
+  /* 状态 —— 暖玫粉，避免硬红与米色暖底冲突 */
+  --error:  #d46a73;
+  --error-soft: rgba(212, 106, 115, 0.14);
 
   /* 字体 */
   --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Text",
@@ -61,10 +75,10 @@
   --font-mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
   --font-display: "Inter", -apple-system, "SF Pro Display", system-ui, sans-serif;
 
-  /* 几何 */
-  --radius-lg: 18px;
-  --radius:    14px;
-  --radius-sm: 8px;
+  /* 几何 —— 加大圆角向参考页靠拢，画面更柔和复古 */
+  --radius-lg: 22px;
+  --radius:    18px;
+  --radius-sm: 10px;
   --sidebar-w: 232px;
 
   /* 阴影 */
@@ -76,9 +90,9 @@
 }
 
 :root[data-theme="light"] {
-  /* 浅色 —— 宣纸米底（更压灰，与纸纤维纹搭配） */
-  --bg:           #ebe5d8;
-  --bg-elevated: rgba(255, 253, 247, 0.78);
+  /* 浅色 —— 极淡米黄底，温暖但不发深 */
+  --bg:           #faf3df;
+  --bg-elevated: rgba(255, 253, 247, 0.96);
   --bg-solid:    #fffdf7;
   --bg-soft:     rgba(20, 18, 12, 0.035);
   --bg-softer:   rgba(20, 18, 12, 0.018);
@@ -95,27 +109,41 @@
   --accent:        #1a1812;
   --accent-soft:   rgba(20, 18, 12, 0.05);
 
-  --hl:        #b49669;
-  --hl-soft:   rgba(180, 150, 105, 0.14);
+  /* 浅色 —— 焦糖陶土，与米黄底同源 */
+  --hl:        #b6794a;
+  --hl-soft:   rgba(182, 121, 74, 0.12);
 
-  --data-1: #6366f1;
-  --data-2: #10b981;
-  --data-3: #b45309;
-  --data-4: #be185d;
-  --data-5: #3b82f6;
-  --data-6: #991b1b;
-  --data-7: #8b5cf6;
+  --data-1: #4f46e5;   /* violet 245° */
+  --data-2: #15803d;   /* green 草绿 145° */
+  --data-3: #b45309;   /* amber 35° */
+  --data-4: #be185d;   /* pink 玫粉 335° */
+  --data-5: #2563eb;   /* sky 天蓝 215° */
+  --data-6: #991b1b;   /* deep rose 0° */
+  --data-7: #a21caf;   /* fuchsia 茄紫 295° */
+  --data-8: #0e7490;   /* cyan 深青 195° */
 
-  /* Aurora —— 极淡薄雾：茶金、苔绿、淡胭脂 */
-  --aurora-1: rgba(190, 165, 120, 0.18);   /* 茶金 */
-  --aurora-2: rgba(140, 155, 130, 0.14);   /* 灰苔 */
-  --aurora-3: rgba(170, 110, 105, 0.12);   /* 淡砖红 */
+  /* 磨砂玻璃环境光 —— 浅色版用更淡的紫粉蓝 */
+  --aurora-1: rgba(180, 160, 240, 0.12);
+  --aurora-2: rgba(255, 170, 165, 0.09);
+  --aurora-3: rgba(155, 195, 235, 0.11);
 
-  /* hero gradient —— 墨黑微微滑向焦糖，杂志感 */
-  --hero-gradient: linear-gradient(135deg, #050403 0%, #2a2520 55%, #6b4423 100%);
+  /* hero gradient —— 浅色版多色：墨色 → 紫 → 玫红 → 焦糖，灵动而精致 */
+  --hero-gradient: linear-gradient(135deg,
+    #1a1a2e 0%,
+    #5b4dbe 28%,
+    #be3d7a 55%,
+    #d4663d 80%,
+    #b48a3a 100%);
 
-  --error: #dc2626;
-  --error-soft: rgba(220, 38, 38, 0.10);
+  /* 浅色版 logo 渐变 —— 用比 data-X 更鲜亮饱和的色，确保渐变层次明显 */
+  --logo-gradient: linear-gradient(135deg,
+    #6366f1 0%,
+    #3b82f6 35%,
+    #ec4899 70%,
+    #f59e0b 100%);
+
+  --error: #b54251;
+  --error-soft: rgba(181, 66, 81, 0.10);
 
   --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.6) inset,
                  0 18px 36px -22px rgba(15, 15, 25, 0.18),
@@ -132,6 +160,8 @@ html, body {
   font-family: var(--font-sans);
   font-size: 13.5px;
   line-height: 1.55;
+  /* 纯色底 —— 不用 background-attachment: fixed 渐变（滚动 paint 杀手）。
+   * 光线层次靠下方独立的 aurora 层提供 */
   background: var(--bg);
   color: var(--fg);
   -webkit-font-smoothing: antialiased;
@@ -179,34 +209,56 @@ a { color: inherit; text-decoration: none; }
   transform: translateZ(0);
 }
 
-.aurora-blob-1 { top: -25%; left: -15%; width: 50vw; height: 50vw; background: var(--aurora-1); }
-.aurora-blob-2 { top: 10%; right: -20%; width: 45vw; height: 45vw; background: var(--aurora-2); }
-.aurora-blob-3 { bottom: -35%; left: 25%; width: 40vw; height: 40vw; background: var(--aurora-3); }
-
-/* 纹理层 —— 不用 mix-blend-mode（性能毒药），直接 opacity 叠加。
- * 颗粒在 SVG 里就调成深色 + 较高 alpha，叠出来已经够"宣纸"。 */
-.noise {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  opacity: 0.10;
-  transform: translateZ(0);
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.18  0 0 0 0 0.15  0 0 0 0 0.10  0 0 0 0.8 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+/* 磨砂玻璃后方光晕 —— 进一步缩小 + 降 blur，最大化 paint cache 命中率，
+ * 让快速滚动时浏览器能复用合成层而不是重新栅格化 */
+.aurora-blob-1 {
+  top: -20%; left: -10%; width: 36vw; height: 36vw;
+  background: var(--aurora-1);
+  filter: blur(80px);
+}
+.aurora-blob-2 {
+  top: 18%; right: -15%; width: 32vw; height: 32vw;
+  background: var(--aurora-2);
+  filter: blur(80px);
+}
+.aurora-blob-3 {
+  bottom: -25%; left: 28%; width: 30vw; height: 30vw;
+  background: var(--aurora-3);
+  filter: blur(80px);
 }
 
+/* 磨砂玻璃质感：
+ *   .paper-grain  —— 主磨砂砂粒：高频、单 octave、各向同性，颗粒细而密
+ *   .noise        —— 极细副层颗粒，丰富纹理深度
+ * 配合下方 aurora-blob 的大模糊光晕 = 完整的"磨砂玻璃透光"效果。
+ */
 .paper-grain {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  opacity: 0.18;
+  opacity: 0.32;
   transform: translateZ(0);
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='0.012' numOctaves='2' seed='5' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.18  0 0 0 0 0.14  0 0 0 0 0.08  0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23f)'/></svg>");
+  /* 暖棕灰砂粒：颜色矩阵映射到 (0.32, 0.24, 0.14) —— 米黄底上叠加是温暖的纸纹，不再"压黑" */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='280' height='280'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='1.6' numOctaves='1' seed='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.32  0 0 0 0 0.24  0 0 0 0 0.14  0 0 0 0.42 0'/></filter><rect width='100%25' height='100%25' filter='url(%23f)'/></svg>");
 }
 
-:root[data-theme="dark"] .noise { opacity: 0.05; }
-:root[data-theme="dark"] .paper-grain { opacity: 0.08; }
+.noise {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.16;
+  transform: translateZ(0);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='2.4' numOctaves='1' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.30  0 0 0 0 0.22  0 0 0 0 0.12  0 0 0 0.65 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+:root[data-theme="dark"] .noise { opacity: 0.10; }
+:root[data-theme="dark"] .paper-grain {
+  opacity: 0.32;
+  /* 暗色模式：砂粒发光（白色 alpha） */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='280' height='280'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='1.6' numOctaves='1' seed='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.95  0 0 0 0 0.93  0 0 0 0 0.86  0 0 0 0.40 0'/></filter><rect width='100%25' height='100%25' filter='url(%23f)'/></svg>");
+}
 
 /* 让所有真实内容浮在 aurora 之上 */
 .sidebar, .content, .theme-toggle { position: relative; z-index: 2; }
@@ -221,10 +273,9 @@ a { color: inherit; text-decoration: none; }
  * Sidebar
  * ================================================================ */
 .sidebar {
+  /* 完全透明，让 aurora 在 sidebar 与 content 之间无缝连续 */
+  background: transparent;
   border-right: 1px solid var(--border-soft);
-  /* 不用 backdrop-filter：sidebar 是 sticky，主区每次滚动它都要 re-sample 下层，
-   * 是滚动卡顿的主要来源之一。改成轻微半透明，让一点 aurora 暖色透过来即可 */
-  background: color-mix(in srgb, var(--bg) 80%, transparent);
   display: flex;
   flex-direction: column;
   padding: 22px 14px;
@@ -250,27 +301,52 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   justify-content: center;
   color: #fff;
-  background: linear-gradient(135deg, #3a342a 0%, #1a1812 100%);
-  box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.45),
-              0 0 0 1px rgba(255, 253, 247, 0.08) inset;
+  /* 用 logo 专属渐变，确保 light / dark 两种模式下都饱满鲜亮 */
+  background: var(--logo-gradient);
+  background-size: 200% 200%;
+  /* 阴影削弱：从 18px / 55% 改为 8px / 22% */
+  box-shadow: 0 3px 8px -2px color-mix(in srgb, var(--data-1) 22%, transparent),
+              0 0 0 1px rgba(255, 255, 255, 0.10) inset;
   flex-shrink: 0;
+  animation: brand-shift 8s ease-in-out infinite;
 }
 
+/* 外光晕收紧 —— 不再像"灯泡"，只在 logo 边缘有轻柔氤氲 */
 .brand-mark::after {
   content: "";
   position: absolute;
-  inset: -2px;
-  border-radius: 13px;
-  background: rgba(180, 150, 105, 0.35);
-  filter: blur(10px);
-  opacity: 0.30;
+  inset: -1px;
+  border-radius: 11px;
+  background: var(--logo-gradient);
+  filter: blur(7px);
+  opacity: 0.18;
   z-index: -1;
-  animation: brand-pulse 4.2s ease-in-out infinite;
+  animation: brand-pulse 5.4s ease-in-out infinite;
+}
+
+@keyframes brand-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
 }
 
 @keyframes brand-pulse {
-  0%, 100% { opacity: 0.20; transform: scale(1); }
-  50%      { opacity: 0.40; transform: scale(1.05); }
+  0%, 100% { opacity: 0.12; transform: scale(1); }
+  50%      { opacity: 0.26; transform: scale(1.04); }
+}
+
+/* 暗色模式下 data 色饱和度高、底深，光晕本来就显眼 —— 进一步削弱 */
+:root[data-theme="dark"] .brand-mark {
+  box-shadow: 0 2px 6px -2px color-mix(in srgb, var(--data-1) 14%, transparent),
+              0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+:root[data-theme="dark"] .brand-mark::after {
+  filter: blur(5px);
+  opacity: 0.10;
+}
+:root[data-theme="dark"] .brand-mark::after { animation-name: brand-pulse-dark; }
+@keyframes brand-pulse-dark {
+  0%, 100% { opacity: 0.06; transform: scale(1); }
+  50%      { opacity: 0.14; transform: scale(1.03); }
 }
 
 .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
@@ -319,7 +395,7 @@ a { color: inherit; text-decoration: none; }
   bottom: 10px;
   width: 2px;
   border-radius: 0;
-  background: #b49669;
+  background: var(--hl);
 }
 
 .nav-icon {
@@ -332,7 +408,7 @@ a { color: inherit; text-decoration: none; }
   transition: color 140ms ease;
 }
 .nav-item:hover .nav-icon { color: var(--fg-mid); }
-.nav-item.active .nav-icon { color: #b49669; }
+.nav-item.active .nav-icon { color: var(--hl); }
 
 .sidebar-foot {
   margin-top: auto;
@@ -652,8 +728,9 @@ a { color: inherit; text-decoration: none; }
 .card[data-tone="emerald"] { --tone: var(--data-2); }
 .card[data-tone="sky"]     { --tone: var(--data-5); }
 .card[data-tone="lilac"]   { --tone: var(--data-7); }
+.card[data-tone="teal"]    { --tone: var(--data-8); }
 
-/* 顶部 accent 条 */
+/* 顶部 accent 条 —— 流光扫动 */
 .card::before {
   content: "";
   position: absolute;
@@ -661,15 +738,29 @@ a { color: inherit; text-decoration: none; }
   height: 2px;
   background: linear-gradient(90deg,
     transparent 0%,
-    color-mix(in srgb, var(--tone) 75%, transparent) 35%,
-    color-mix(in srgb, var(--tone) 95%, transparent) 50%,
-    color-mix(in srgb, var(--tone) 75%, transparent) 65%,
+    color-mix(in srgb, var(--tone) 75%, transparent) 30%,
+    color-mix(in srgb, var(--tone) 100%, transparent) 50%,
+    color-mix(in srgb, var(--tone) 75%, transparent) 70%,
     transparent 100%);
+  background-size: 220% 100%;
   opacity: 0.55;
   transition: opacity 220ms;
+  animation: accent-sweep 9s ease-in-out infinite;
 }
 
-/* 角落柔光 */
+/* 让每张卡的流光起始相位错开，整体看起来像"序列灯" */
+.cards .card:nth-child(2)::before { animation-delay: -1.5s; }
+.cards .card:nth-child(3)::before { animation-delay: -3s; }
+.cards .card:nth-child(4)::before { animation-delay: -4.5s; }
+.cards .card:nth-child(5)::before { animation-delay: -6s; }
+.cards .card:nth-child(6)::before { animation-delay: -7.5s; }
+
+@keyframes accent-sweep {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+/* 角落柔光 —— 缓慢呼吸 */
 .card .card-glow {
   position: absolute;
   right: -40px;
@@ -684,6 +775,17 @@ a { color: inherit; text-decoration: none; }
   opacity: 0.50;
   z-index: -1;
   transition: opacity 320ms, transform 320ms;
+  animation: glow-breathe 7s ease-in-out infinite;
+}
+.cards .card:nth-child(2) .card-glow { animation-delay: -1.2s; }
+.cards .card:nth-child(3) .card-glow { animation-delay: -2.4s; }
+.cards .card:nth-child(4) .card-glow { animation-delay: -3.6s; }
+.cards .card:nth-child(5) .card-glow { animation-delay: -4.8s; }
+.cards .card:nth-child(6) .card-glow { animation-delay: -6s; }
+
+@keyframes glow-breathe {
+  0%, 100% { opacity: 0.42; transform: scale(0.96); }
+  50%      { opacity: 0.65; transform: scale(1.06); }
 }
 
 .card:hover {
@@ -731,15 +833,10 @@ a { color: inherit; text-decoration: none; }
   margin-top: 4px;
 }
 
-/* hero 卡数字更大 + gradient text */
+/* hero 卡数字 —— 纯单色，让 hero 数字是焦点而不是奇观 */
 .card-hero .card-value {
   font-size: 44px;
   letter-spacing: -1.4px;
-  background: var(--hero-gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  /* fallback color in case of clip failure */
   color: var(--fg-strong);
 }
 
@@ -846,13 +943,16 @@ a { color: inherit; text-decoration: none; }
  * 历史 · 搜索 + 筛选合一面板
  * ================================================================ */
 .search-panel {
-  /* 实底色，不用 backdrop-filter —— 大面积模糊层在滚动时持续 GPU 工作 */
   background: var(--bg-solid);
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   margin-bottom: 20px;
   box-shadow: var(--shadow-card);
   transition: border-color 180ms, box-shadow 180ms;
+  /* ⚠ 切勿在此加 overflow: hidden ——
+   * 内部 .dropdown 弹出菜单是 absolute 定位，会被 overflow 裁掉，
+   * 这是 CSS 层叠的硬约束（z-index 救不了）。
+   * 圆角导致的子元素溢出靠 .filter-row 自己的圆角配合解决。 */
 }
 
 .search-panel:focus-within {
@@ -902,16 +1002,15 @@ a { color: inherit; text-decoration: none; }
 }
 .search-clear:hover { color: var(--fg-strong); border-color: var(--border); }
 
+/* 筛选行 —— 不喧宾夺主：仅一条顶部 hairline，无独立背景 */
 .filter-row {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 11px 18px;
+  padding: 10px 18px;
   border-top: 1px solid var(--border-soft);
-  background: var(--bg-softer);
+  background: transparent;
   flex-wrap: wrap;
-  border-bottom-left-radius: calc(var(--radius) - 1px);
-  border-bottom-right-radius: calc(var(--radius) - 1px);
 }
 
 .filter-divider {
@@ -967,11 +1066,11 @@ a { color: inherit; text-decoration: none; }
 .date-trigger:hover { border-color: var(--border); }
 .date-trigger:hover .date-icon { color: var(--fg-mid); }
 .date-trigger.has-value { color: var(--fg-strong); }
-.date-trigger.has-value .date-icon { color: #b49669; }
+.date-trigger.has-value .date-icon { color: var(--hl); }
 
 .date-trigger.is-open {
-  border-color: color-mix(in srgb, #b49669 60%, var(--border));
-  box-shadow: 0 0 0 3px color-mix(in srgb, #b49669 18%, transparent);
+  border-color: color-mix(in srgb, var(--hl) 60%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hl) 18%, transparent);
 }
 
 .date-trigger-label { line-height: 1; }
@@ -1075,11 +1174,11 @@ a { color: inherit; text-decoration: none; }
 .cal-day.is-other-month:hover { color: var(--fg-dim); }
 
 .cal-day.is-today {
-  border-color: color-mix(in srgb, #b49669 50%, var(--border));
+  border-color: color-mix(in srgb, var(--hl) 50%, var(--border));
   font-weight: 600;
-  color: #b49669;
+  color: var(--hl);
 }
-:root[data-theme="dark"] .cal-day.is-today { color: #d4b896; border-color: color-mix(in srgb, #d4b896 40%, var(--border)); }
+:root[data-theme="dark"] .cal-day.is-today { color: var(--hl); border-color: color-mix(in srgb, var(--hl) 40%, var(--border)); }
 
 .cal-day.is-selected {
   background: linear-gradient(135deg, #2a2520 0%, #1a1812 100%);
@@ -1089,7 +1188,7 @@ a { color: inherit; text-decoration: none; }
   box-shadow: 0 4px 10px -3px rgba(0, 0, 0, 0.30);
 }
 :root[data-theme="dark"] .cal-day.is-selected {
-  background: linear-gradient(135deg, #d4b896 0%, #b49669 100%);
+  background: linear-gradient(135deg, var(--hl) 0%, var(--hl) 100%);
   color: #1a1812;
 }
 
@@ -1115,8 +1214,8 @@ a { color: inherit; text-decoration: none; }
   transition: color 120ms, background 120ms;
 }
 .cal-action:hover { color: var(--fg-strong); background: var(--hover); }
-.cal-action.cal-today-btn { color: #b49669; }
-:root[data-theme="dark"] .cal-action.cal-today-btn { color: #d4b896; }
+.cal-action.cal-today-btn { color: var(--hl); }
+:root[data-theme="dark"] .cal-action.cal-today-btn { color: var(--hl); }
 
 .filter-clear-btn,
 .filter-row .filter-clear-btn {
@@ -1293,10 +1392,14 @@ mark {
   cursor: pointer;
   transition: background 160ms, border-color 160ms, transform 160ms;
   overflow: hidden;
-  /* 渲染优化：每项独立 contain 边界，滚动时不波及整个文档树
+  /* 渲染优化：
+   *   contain —— 每项隔离 layout/paint/style，滚动时不波及整个文档树
+   *   transform: translateZ(0) —— 推到独立合成层，paint 结果可被浏览器缓存复用，
+   *     大幅降低快速滚动时"屏幕外卡片重 paint"的概率（消除空白闪烁）
    * 注意：不用 content-visibility: auto —— 它会让屏幕外卡片"跳过渲染"，
-   * 快速滚动时浏览器来不及激活就显示空白占位 */
+   *   快速滚动时浏览器来不及激活就显示空白占位 */
   contain: layout paint style;
+  transform: translateZ(0);
 }
 
 :root[data-theme="dark"] .recent-item { background: var(--bg-solid); }
@@ -1376,15 +1479,18 @@ mark {
 }
 
 .recent-duration {
-  background: var(--bg-soft);
-  color: var(--fg-mid);
-  border: 1px solid var(--border-soft);
-  padding: 4px 10px;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--data-1) 18%, transparent),
+    color-mix(in srgb, var(--data-5) 14%, transparent));
+  color: var(--data-1);
+  border: 1px solid color-mix(in srgb, var(--data-1) 28%, transparent);
+  padding: 4px 11px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--data-1) 8%, transparent) inset;
 }
 
 .recent-text {
@@ -1449,7 +1555,7 @@ mark {
   box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.35);
 }
 :root[data-theme="dark"] .btn-copy {
-  background: linear-gradient(135deg, #d4b896 0%, #b49669 100%);
+  background: linear-gradient(135deg, var(--hl) 0%, var(--hl) 100%);
   color: #1a1812;
 }
 
@@ -1490,19 +1596,37 @@ audio {
 }
 :root[data-theme="light"] audio { filter: none; }
 
+/* 元信息横向排列：4 个 chip 一行展示，提高信息密度，窄屏自动换行 */
 .detail-meta {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  row-gap: 10px;
-  column-gap: 16px;
-  font-size: 13px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 24px;
+  font-size: 12px;
 }
 
-.detail-meta-label {
-  display: flex;
+.meta-stat {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  color: var(--fg-mid);
+  gap: 7px;
+  min-width: 0;
+}
+
+.meta-label {
+  color: var(--fg-dim);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.meta-value {
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .detail-meta-icon {
@@ -1516,14 +1640,7 @@ audio {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-}
-
-.detail-meta-value {
-  color: var(--fg);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  font-family: var(--font-mono);
-  font-size: 12px;
+  flex-shrink: 0;
 }
 
 .error-tag {

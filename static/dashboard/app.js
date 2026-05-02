@@ -872,8 +872,11 @@ function toggleDetail(li, item) {
         ${metaRows
           .map(
             ([icon, label, value]) => `
-          <div class="detail-meta-label"><span class="detail-meta-icon">${icon}</span>${label}</div>
-          <div class="detail-meta-value">${value}</div>`
+          <div class="meta-stat">
+            <span class="detail-meta-icon">${icon}</span>
+            <span class="meta-label">${label}</span>
+            <span class="meta-value">${value}</span>
+          </div>`
           )
           .join("")}
       </div>
@@ -979,6 +982,15 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("click", (e) => {
     if (!document.getElementById("client-dropdown").contains(e.target)) closeDropdown();
   });
+
+  // 音频互斥播放：开始播一个时，自动暂停其他正在播放的 audio。
+  // 用 capture 阶段监听全局 play 事件，无需每个 audio 单独绑定 —— 简洁可靠。
+  document.addEventListener("play", (e) => {
+    if (e.target.tagName !== "AUDIO") return;
+    document.querySelectorAll("audio").forEach((other) => {
+      if (other !== e.target && !other.paused) other.pause();
+    });
+  }, true);
 
   window.addEventListener("hashchange", syncRoute);
   syncRoute();
