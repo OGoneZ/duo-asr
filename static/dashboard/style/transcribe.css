@@ -1,6 +1,6 @@
 .trans-input {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 18px;
   align-items: stretch;
 }
@@ -51,28 +51,6 @@
   color: var(--fg-dim);
   font-size: 12.5px;
 }
-
-.trans-or {
-  align-self: center;
-  color: var(--fg-dim);
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  position: relative;
-  width: 28px;
-  text-align: center;
-}
-.trans-or::before,
-.trans-or::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  width: 1px;
-  height: calc(50% - 18px);
-  background: var(--border-soft);
-}
-.trans-or::before { top: 0; }
-.trans-or::after  { bottom: 0; }
 
 .trans-recorder {
   display: flex;
@@ -163,11 +141,6 @@
   background: linear-gradient(90deg, var(--hl), #f87171);
   transition: width 60ms linear;
 }
-.trans-rec-hint {
-  color: var(--fg-dim);
-  font-size: 12px;
-}
-
 .trans-status {
   margin-top: 18px;
   padding: 12px 16px;
@@ -180,6 +153,8 @@
   align-items: center;
   gap: 10px;
 }
+/* `display: flex` 会盖掉 [hidden] 默认的 display:none —— 显式还原 */
+.trans-status[hidden] { display: none; }
 .trans-status-error {
   background: rgba(239, 68, 68, 0.12);
   border-color: rgba(239, 68, 68, 0.32);
