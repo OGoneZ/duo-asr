@@ -352,10 +352,17 @@ a { color: inherit; text-decoration: none; }
 .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
 .brand-title {
   font-family: var(--font-display);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.3px;
+  /* 同款 logo 渐变 + 缓慢扫光，与右侧 logo 方块呼应 */
+  background: var(--logo-gradient);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
   color: var(--fg-strong);
+  animation: hero-shift 8s ease-in-out infinite;
 }
 .brand-sub {
   font-size: 10.5px;
@@ -478,7 +485,7 @@ a { color: inherit; text-decoration: none; }
  * Content
  * ================================================================ */
 .content {
-  padding: 40px 56px 96px;
+  padding: 22px 56px 40px;
   max-width: 1320px;
   margin: 0 auto;
   width: 100%;
@@ -498,31 +505,11 @@ a { color: inherit; text-decoration: none; }
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 32px;
+  margin-bottom: 18px;
   flex-wrap: wrap;
 }
 
-.view-title { display: flex; flex-direction: column; gap: 4px; }
-
-.view-eyebrow {
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.32em;
-  text-transform: uppercase;
-  color: var(--fg-dim);
-  position: relative;
-  padding-left: 22px;
-}
-.view-eyebrow::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 14px;
-  height: 1px;
-  background: var(--fg-faint);
-}
+.view-title { display: flex; flex-direction: column; }
 
 .view-header h1 {
   margin: 0;
@@ -532,6 +519,23 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: -0.6px;
   color: var(--fg-strong);
   line-height: 1.1;
+  /* baseline 对齐让英文小注紧贴中文标题底线 */
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* 英文小注 —— 取代之前的横线装饰，焦糖色 + 字距大写，
+ * 跟中文大字形成"杂志感"对比 */
+.view-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--hl);
+  /* 视觉上把英文托高一点，不沉在中文底部 */
+  transform: translateY(-3px);
 }
 
 .toolbar {
@@ -675,13 +679,84 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ================================================================
+ * Hero banner —— 单行居中，两个关键数字加大放亮
+ * ================================================================ */
+.hero-banner {
+  margin-bottom: 12px;
+  padding: 4px 8px 0;
+  text-align: center;
+}
+
+/* DuoASR 品牌名 —— 跟 hero 数字一样大 + logo 渐变填充 */
+.brand-name {
+  font-family: var(--font-display);
+  font-size: 2em;
+  font-weight: 800;
+  letter-spacing: -1.2px;
+  vertical-align: -0.18em;
+  background: var(--logo-gradient);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: var(--fg-strong);
+  animation: hero-shift 8s ease-in-out infinite;
+  margin: 0 4px;
+}
+
+.hero-banner-text {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--fg);
+  letter-spacing: -0.3px;
+  line-height: 1.4;
+}
+
+/* 关键数字 —— 比正文大 + 多色渐变 + 缓慢扫光 */
+.hero-big {
+  font-family: var(--font-display);
+  font-size: 2em;                /* 相对正文 22px ≈ 44px */
+  font-weight: 800;
+  letter-spacing: -1.4px;
+  font-variant-numeric: tabular-nums;
+  vertical-align: -0.18em;       /* 与中文 baseline 对齐 */
+  background: var(--hero-gradient);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: var(--fg-strong);       /* fallback */
+  margin: 0 4px;
+  animation: hero-shift 11s ease-in-out infinite;
+}
+
+@keyframes hero-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+.hero-banner-sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--fg-dim);
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 720px) {
+  .hero-banner-text { font-size: 16px; }
+  .hero-big { font-size: 1.7em; }
+}
+
+/* ================================================================
  * 统计卡片 —— 灵魂区域
  * ================================================================ */
 .cards {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  gap: 16px;
-  margin-bottom: 36px;
+  gap: 14px;
+  margin-bottom: 18px;
 }
 
 /* hero × 2，每张占 6 列 */
@@ -704,7 +779,7 @@ a { color: inherit; text-decoration: none; }
   -webkit-backdrop-filter: blur(20px) saturate(140%);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
-  padding: 22px 24px 24px;
+  padding: 14px 20px 16px;
   box-shadow: var(--shadow-card);
   overflow: hidden;
   isolation: isolate;
@@ -713,8 +788,8 @@ a { color: inherit; text-decoration: none; }
               box-shadow 220ms;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-height: 132px;
+  gap: 4px;
+  min-height: 108px;
 
   /* 默认 tone（被 data-tone 覆盖） */
   --tone: var(--data-1);
@@ -875,8 +950,8 @@ a { color: inherit; text-decoration: none; }
   -webkit-backdrop-filter: blur(20px) saturate(140%);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
-  padding: 22px 24px 24px;
-  margin-bottom: 32px;
+  padding: 16px 20px 18px;
+  margin-bottom: 16px;
   box-shadow: var(--shadow-card);
   overflow: hidden;
   animation: card-in 540ms cubic-bezier(.16, 1, .3, 1) both;
@@ -897,7 +972,7 @@ a { color: inherit; text-decoration: none; }
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
-  margin-bottom: 18px;
+  margin-bottom: 10px;
   flex-wrap: wrap;
 }
 
@@ -937,7 +1012,7 @@ a { color: inherit; text-decoration: none; }
 .swatch-violet { background: var(--data-1); box-shadow: 0 0 8px color-mix(in srgb, var(--data-1) 60%, transparent); }
 .swatch-emerald { background: var(--data-2); box-shadow: 0 0 8px color-mix(in srgb, var(--data-2) 60%, transparent); }
 
-.chart-wrap { height: 300px; position: relative; }
+.chart-wrap { height: 260px; position: relative; }
 
 /* ================================================================
  * 历史 · 搜索 + 筛选合一面板

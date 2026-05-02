@@ -76,8 +76,7 @@
     <section class="view view-home" data-view="home">
       <header class="view-header">
         <div class="view-title">
-          <span class="view-eyebrow">Overview</span>
-          <h1>概览</h1>
+          <h1>概览<span class="view-eyebrow">Overview</span></h1>
         </div>
         <div class="toolbar">
           <div class="dropdown" id="client-dropdown">
@@ -96,6 +95,15 @@
         </div>
       </header>
 
+      <!-- 故事化标题：单行居中，两个关键数字加大放亮 -->
+      <section class="hero-banner" id="hero-banner">
+        <p class="hero-banner-text">
+          已使用 <span class="hero-big" id="hero-days">—</span> 天，<span class="brand-name">DuoASR</span> 替你节省了
+          <span class="hero-big" id="hero-saved">—</span> 打字时间。
+        </p>
+        <p class="hero-banner-sub" id="hero-sub">按 100 汉字 / 分钟手打估算</p>
+      </section>
+
       <div class="cards">
         <!-- Hero × 2 -->
         <div class="card card-hero" data-tone="violet">
@@ -106,7 +114,7 @@
               <path d="M12 19v3"/>
             </svg>
           </div>
-          <div class="card-label">累计转录语音</div>
+          <div class="card-label">累计输入语音</div>
           <div class="card-value">
             <span id="stat-duration">—</span><span class="card-unit" id="stat-duration-unit"></span>
           </div>
@@ -204,8 +212,7 @@
     <section class="view view-history" data-view="history" hidden>
       <header class="view-header">
         <div class="view-title">
-          <span class="view-eyebrow">History</span>
-          <h1>历史记录</h1>
+          <h1>历史记录<span class="view-eyebrow">History</span></h1>
         </div>
         <span class="muted" id="history-count"></span>
       </header>

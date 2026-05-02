@@ -128,6 +128,20 @@ def query_summary(client: str | None = None, days: int | None = None) -> dict:
         ).fetchone()["c"]
     out = dict(row)
     out["error_count"] = err_count
+
+    # 全局首次使用时间（不受 days 过滤限制，仅按 client 区分），
+    # 用于前端计算"已使用 N 天"。
+    global_conds = ["error IS NULL"]
+    global_params: list = []
+    if client and client != "all":
+        global_conds.append("client_host = ?")
+        global_params.append(client)
+    with _connect() as conn:
+        first_row = conn.execute(
+            f"SELECT MIN(created_at) AS first_used_at FROM transcriptions WHERE {' AND '.join(global_conds)}",
+            global_params,
+        ).fetchone()
+    out["first_used_at"] = first_row["first_used_at"]
     return out
 
 

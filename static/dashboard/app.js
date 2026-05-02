@@ -229,6 +229,34 @@ async function loadSummary() {
 
   document.getElementById("last-update").textContent =
     `更新 ${new Date().toLocaleTimeString()}`;
+
+  // ----- 故事化 hero banner -----
+  // 已使用天数 = 今天 - 数据库中最早一条记录的日期（不受时段筛选限制）
+  let usedDays = "—";
+  if (s.first_used_at) {
+    const first = new Date(s.first_used_at);
+    const ms = Date.now() - first.getTime();
+    usedDays = Math.max(1, Math.floor(ms / 86400000));
+  }
+  document.getElementById("hero-days").textContent = usedDays;
+
+  // 节省时间 = 手打耗时 - 实际语音耗时（100 字/分钟手打估算）
+  const TYPING_WPM = 100;
+  const typeMin = (s.total_chars || 0) / TYPING_WPM;
+  const speakMin = (s.total_duration_sec || 0) / 60;
+  const savedMin = Math.max(0, typeMin - speakMin);
+
+  let savedLabel;
+  if (savedMin >= 60) {
+    const h = Math.floor(savedMin / 60);
+    const m = Math.round(savedMin % 60);
+    savedLabel = m > 0 ? `${h} 小时 ${m} 分钟` : `${h} 小时`;
+  } else if (savedMin >= 1) {
+    savedLabel = `${Math.round(savedMin)} 分钟`;
+  } else {
+    savedLabel = "—";
+  }
+  document.getElementById("hero-saved").textContent = savedLabel;
 }
 
 // 本地日期 YYYY-MM-DD —— 与后端 DATE(..., 'localtime') 输出一致
