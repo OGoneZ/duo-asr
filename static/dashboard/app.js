@@ -1003,6 +1003,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupHotwords();
   setupTranscribe();
   setupModelsPage();
+  setupModelSearch();
 
   // 主题切换
   document.getElementById("theme-toggle").addEventListener("click", toggleTheme);
@@ -1929,3 +1930,127 @@ function stateLabel(s) {
 }
 
 // 把模型管理页的下载控件挂上事件 — 在 setupHotwords 旁边调用
+
+// ---------- 模型搜索 ----------
+let modelSearchTimer = null;
+let modelSearchSeq = 0;
+
+function setupModelSearch() {
+  const input = document.getElementById("model-search-input");
+  const clearBtn = document.getElementById("model-search-clear");
+  if (!input) return;
+
+  input.addEventListener("input", () => {
+    const q = input.value.trim();
+    clearBtn.hidden = q.length === 0;
+    if (modelSearchTimer) clearTimeout(modelSearchTimer);
+    if (!q) {
+      renderSearchResults([], 0, "");
+      hideSearchStatus();
+      return;
+    }
+    modelSearchTimer = setTimeout(() => runModelSearch(q), 300);
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      if (modelSearchTimer) clearTimeout(modelSearchTimer);
+      runModelSearch(input.value.trim());
+    }
+  });
+  clearBtn.addEventListener("click", () => {
+    input.value = "";
+    clearBtn.hidden = true;
+    renderSearchResults([], 0, "");
+    hideSearchStatus();
+    input.focus();
+  });
+}
+
+async function runModelSearch(q) {
+  if (!q) return;
+  const seq = ++modelSearchSeq;
+  showSearchStatus(`正在搜索「${q}」…`);
+  try {
+    const r = await fetch(`/api/models/search?q=${encodeURIComponent(q)}&page_size=20`);
+    const body = await r.json();
+    if (seq !== modelSearchSeq) return;  // 过期响应丢弃
+    if (!r.ok) {
+      showSearchStatus(`搜索失败：${body.error || r.status}`, true);
+      renderSearchResults([], 0, q);
+      return;
+    }
+    if (!body.items.length) {
+      showSearchStatus(`没有匹配「${q}」的模型`);
+    } else {
+      hideSearchStatus();
+    }
+    renderSearchResults(body.items, body.total, q);
+  } catch (err) {
+    if (seq !== modelSearchSeq) return;
+    showSearchStatus(`请求失败：${err.message || err}`, true);
+  }
+}
+
+function renderSearchResults(items, total, q) {
+  const el = document.getElementById("model-search-results");
+  if (!el) return;
+  if (!items.length) {
+    el.innerHTML = "";
+    return;
+  }
+  // 按"是 ASR"优先 + 下载量降序
+  const sorted = items.slice().sort((a, b) => {
+    if (a.is_asr !== b.is_asr) return a.is_asr ? -1 : 1;
+    return (b.downloads || 0) - (a.downloads || 0);
+  });
+  const head = `<li class="search-summary">「${escape(q)}」匹配 ${total} 个模型，显示前 ${items.length} 个（ASR 优先）</li>`;
+  el.innerHTML = head + sorted.map(renderSearchHit).join("");
+  el.onclick = handleModelAction;
+}
+
+function renderSearchHit(it) {
+  const stateBadge = it.is_current
+    ? '<span class="model-badge model-badge-current">当前激活</span>'
+    : (it.downloaded ? '<span class="model-badge model-badge-downloaded">已下载</span>' : "");
+  const asrBadge = it.is_asr
+    ? '<span class="model-badge model-badge-asr">ASR</span>'
+    : '<span class="model-badge model-badge-soft">非 ASR</span>';
+  const action = it.downloaded
+    ? (it.is_current
+        ? ""
+        : `<button class="model-act-btn model-act-activate" data-action="activate" data-name="${escape(it.name)}">使用此模型</button>`)
+    : `<button class="model-act-btn model-act-download" data-action="download" data-id="${escape(it.model_id)}">下载</button>`;
+
+  const dlText = it.downloads >= 10000
+    ? `${(it.downloads / 10000).toFixed(1)} 万下载`
+    : `${it.downloads} 下载`;
+
+  return `
+    <li class="search-hit${it.is_current ? " is-current" : ""}${it.is_asr ? "" : " is-non-asr"}">
+      <div class="search-hit-main">
+        <span class="search-hit-id" title="${escape(it.model_id)}">${escape(it.model_id)}</span>
+        ${asrBadge}
+        ${stateBadge}
+        ${it.chinese_name ? `<span class="search-hit-cn">${escape(it.chinese_name)}</span>` : ""}
+      </div>
+      <div class="search-hit-aside">
+        <span class="search-hit-meta">${escape(dlText)}${it.stars ? ` · ★ ${it.stars}` : ""}</span>
+        ${action}
+      </div>
+      ${it.tasks.length ? `<div class="search-hit-tasks">${it.tasks.map((t) => `<span class="task-chip">${escape(t)}</span>`).join("")}</div>` : ""}
+    </li>
+  `;
+}
+
+function showSearchStatus(text, isError = false) {
+  const el = document.getElementById("model-search-status");
+  el.textContent = text;
+  el.classList.toggle("is-error", !!isError);
+  el.hidden = false;
+}
+
+function hideSearchStatus() {
+  const el = document.getElementById("model-search-status");
+  el.hidden = true;
+  el.textContent = "";
+}

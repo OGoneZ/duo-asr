@@ -12,7 +12,7 @@ from fastapi import APIRouter, Body, File, HTTPException, Query, Request, Upload
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 import soundfile as sf
 
-from app import config, db, downloader, model, models_registry, recommended, stats
+from app import config, db, downloader, model, models_registry, modelscope_search, recommended, stats
 from app.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -315,6 +315,32 @@ async def get_model_download(task_id: str):
 async def get_model_downloads():
     """最近的下载任务列表（含进行中和已完成）。"""
     return {"items": [t.to_dict() for t in downloader.list_recent()]}
+
+
+@router.get("/api/models/search")
+async def search_modelscope(
+    q: str = Query("", description="模糊关键词，匹配模型名"),
+    page: int = Query(1, ge=1, le=50),
+    page_size: int = Query(20, ge=5, le=50),
+):
+    """关键词搜索 ModelScope 模型库（公网代理 + 本地缓存）。
+
+    Tasks 过滤在公开 API 上无效，搜索结果会包含非 ASR 模型；前端按 ``is_asr``
+    标记区分。每条结果带 ``downloaded`` 字段，标记本地是否已存在同名目录。
+    """
+    if not q.strip():
+        return {"query": "", "page": page, "page_size": page_size, "total": 0, "items": []}
+    try:
+        result = await modelscope_search.search(q, page=page, page_size=page_size)
+    except RuntimeError as exc:
+        raise HTTPException(502, str(exc))
+
+    # 联表已下载状态
+    downloaded_names = {m.name for m in models_registry.list_models()}
+    for item in result["items"]:
+        item["downloaded"] = item["name"] in downloaded_names
+        item["is_current"] = (item["name"] == config.MODEL_NAME)
+    return result
 
 
 @router.post("/api/models/active")
