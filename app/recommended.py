@@ -80,42 +80,10 @@ RECOMMENDED: list[RecommendedFamily] = [
             ),
         ),
     ),
-    RecommendedFamily(
-        family_id="fun-asr",
-        name="Fun-ASR Nano",
-        summary="千问团队 + FunAudioLLM 联合，LLM 风格 ASR；中文/方言/英日多语种",
-        languages=("中文", "中文方言", "英文", "日文"),
-        tags=("dialect", "multilingual"),
-        variants=(
-            RecommendedVariant(
-                model_id="FunAudioLLM/Fun-ASR-Nano-2512",
-                label="Fun-ASR-Nano-2512",
-                params_b=0.6,
-                precision="FP16",
-                backend="funasr",
-                size_human="1.5 GB",
-                summary="69 万下载，最稳定的版本",
-            ),
-            RecommendedVariant(
-                model_id="fengge2024/Fun-ASR-Nano-2512-8bit",
-                label="Fun-ASR-Nano-2512-8bit",
-                params_b=0.6,
-                precision="INT8",
-                backend="funasr",
-                size_human="750 MB",
-                summary="8bit 量化版，体积/显存减半",
-            ),
-            RecommendedVariant(
-                model_id="FunAudioLLM/Fun-ASR-MLT-Nano-2512",
-                label="Fun-ASR-MLT-Nano-2512",
-                params_b=0.6,
-                precision="FP16",
-                backend="funasr",
-                size_human="1.5 GB",
-                summary="多语言扩展版（multilingual）",
-            ),
-        ),
-    ),
+    # Fun-ASR Nano 暂不放进推荐：funasr 1.3.1 不内置 FunASRNano 模型类，
+    # 需要从 github FunAudioLLM/Fun-ASR 仓库单独下载 model.py + 配置
+    # remote_code 才能加载，不属于"通用 funasr backend"能力范围。等做了
+    # 专门的 FunAsrNanoBackend（自动抓 model.py + Qwen3-0.6B 依赖）再加回来。
     RecommendedFamily(
         family_id="sensevoice",
         name="SenseVoice",

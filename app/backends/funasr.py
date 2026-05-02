@@ -68,8 +68,18 @@ class FunAsrBackend:
                 disable_update=True,    # 不要弹"检查更新"提示
                 trust_remote_code=False,
             )
-        except Exception as exc:
+        except AssertionError as exc:
+            # funasr 内部用 assert 报"X is not registered"，对应模型类未注册
+            msg = str(exc)
+            if "is not registered" in msg:
+                raise BackendError(
+                    f"该模型需要 funasr 不内置的自定义模型类（{msg.strip()}）。"
+                    f"通常需要从作者仓库单独下载 model.py 并配置 remote_code，"
+                    f"当前 backend 暂不支持。可考虑切换到其他模型。"
+                ) from exc
             raise BackendError(f"FunASR 加载失败: {self.model_path}") from exc
+        except Exception as exc:
+            raise BackendError(f"FunASR 加载失败: {self.model_path} — {exc}") from exc
         logger.info("FunASR 加载完成")
 
     def transcribe(self, audio_path: str) -> tuple[str, int]:

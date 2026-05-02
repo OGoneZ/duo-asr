@@ -1925,6 +1925,11 @@ audio {
   gap: 10px;
   margin-bottom: 8px;
 }
+/* .filter-reset 自带 margin-left:auto（用在历史筛选区"靠右"技巧），
+   在 mode-bar 里会把 segmented 撑到最左，需要显式覆盖 */
+.hotwords-mode-bar .filter-reset {
+  margin-left: 0;
+}
 
 /* 表底「+ 新增热词」按钮 */
 .hotwords-add-row {
