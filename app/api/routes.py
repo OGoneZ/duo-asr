@@ -291,6 +291,30 @@ async def get_model_downloads():
     return {"items": [t.to_dict() for t in downloader.list_recent()]}
 
 
+@router.post("/api/models/active")
+async def post_model_active(payload: dict = Body(...)):
+    """切换激活模型。同步执行（包含释放旧模型 + 加载新模型）。
+
+    payload: {"name": "<已下载模型名>"}
+    """
+    name = (payload.get("name") or "").strip()
+    if not name or "/" in name or "\\" in name or name in (".", ".."):
+        raise HTTPException(400, f"非法模型名: {name!r}")
+    target = config.MODELS_DIR / name
+    if not target.is_dir():
+        raise HTTPException(404, f"模型不存在: {name}")
+    if name == config.MODEL_NAME:
+        return {"ok": True, "active": name, "unchanged": True}
+
+    try:
+        # 加载是 CPU/GPU 重活，丢到线程池避免阻塞 event loop
+        import asyncio
+        await asyncio.to_thread(model.switch_model, name)
+    except Exception as exc:
+        raise HTTPException(500, f"切换失败: {exc}")
+    return {"ok": True, "active": config.MODEL_NAME}
+
+
 @router.delete("/api/models/{name}")
 async def delete_model(name: str):
     """删除一个已下载的模型目录。

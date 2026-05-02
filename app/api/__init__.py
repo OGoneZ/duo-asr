@@ -19,6 +19,9 @@ async def lifespan(app: FastAPI):
     db.init()
     config.RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
 
+    # 从持久化文件恢复上次切换到的激活模型（若有）
+    model.restore_active_model_from_disk()
+
     logger.info("预加载模型")
     try:
         model.load_model()

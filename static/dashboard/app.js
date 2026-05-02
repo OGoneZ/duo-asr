@@ -1622,6 +1622,7 @@ function renderModels(items, active) {
         <div class="model-card-right">
           <span class="model-size">${escape(m.size_human)}</span>
           <div class="model-actions">
+            ${m.is_current || !m.valid ? "" : `<button class="model-act-btn model-act-activate" data-action="activate" data-name="${escape(m.name)}">使用此模型</button>`}
             ${m.is_current ? "" : `<button class="model-act-btn model-act-delete" data-action="delete" data-name="${escape(m.name)}">删除</button>`}
           </div>
         </div>
@@ -1640,6 +1641,38 @@ async function handleModelAction(e) {
   const name = btn.dataset.name;
   if (action === "delete") return deleteModel(name, btn);
   if (action === "activate") return activateModel(name, btn);
+}
+
+async function activateModel(name, btn) {
+  if (!confirm(`将激活模型切换为「${name}」？\n切换期间会释放当前模型并加载新模型，可能需要十几秒，期间转录请求会等待。`)) return;
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "切换中…";
+  // 同步禁用页面上其他动作按钮
+  document.querySelectorAll(".model-act-btn").forEach((b) => { b.disabled = true; });
+  showModelsError(`正在切换到 ${name}…`);
+  try {
+    const r = await fetch("/api/models/active", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      showModelsError(`切换失败：${body.error || r.status}`);
+      btn.disabled = false;
+      btn.textContent = orig;
+      document.querySelectorAll(".model-act-btn").forEach((b) => { b.disabled = false; });
+      return;
+    }
+    hideModelsError();
+    await loadModels();
+  } catch (err) {
+    showModelsError(`请求失败：${err.message || err}`);
+    btn.disabled = false;
+    btn.textContent = orig;
+    document.querySelectorAll(".model-act-btn").forEach((b) => { b.disabled = false; });
+  }
 }
 
 async function deleteModel(name, btn) {
