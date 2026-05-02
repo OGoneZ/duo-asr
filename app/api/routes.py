@@ -256,20 +256,30 @@ async def get_models():
     downloaded = [m.to_dict() for m in models_registry.list_models()]
     downloaded_names = {m["name"] for m in downloaded}
 
-    recos = []
-    for r in recommended.RECOMMENDED:
-        d = r.to_dict()
-        target_name = r.model_id.split("/")[-1]
-        d["target_name"] = target_name
-        d["downloaded"] = target_name in downloaded_names
-        d["is_current"] = (target_name == config.MODEL_NAME)
-        recos.append(d)
+    families = []
+    for fam in recommended.RECOMMENDED:
+        fam_dict = fam.to_dict()
+        any_downloaded = False
+        any_current = False
+        for v in fam_dict["variants"]:
+            target_name = v["model_id"].split("/")[-1]
+            v["target_name"] = target_name
+            v["downloaded"] = target_name in downloaded_names
+            v["is_current"] = (target_name == config.MODEL_NAME)
+            if v["downloaded"]:
+                any_downloaded = True
+            if v["is_current"]:
+                any_current = True
+        fam_dict["any_downloaded"] = any_downloaded
+        fam_dict["any_current"] = any_current
+        fam_dict["variant_count"] = len(fam_dict["variants"])
+        families.append(fam_dict)
 
     return {
         "active": config.MODEL_NAME,
         "models_dir": str(config.MODELS_DIR),
         "items": downloaded,
-        "recommended": recos,
+        "recommended": families,
     }
 
 

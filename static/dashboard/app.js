@@ -1635,38 +1635,72 @@ function renderModels(items, active) {
   el.onclick = handleModelAction;
 }
 
-function renderRecommended(items) {
+function renderRecommended(families) {
   const el = document.getElementById("models-recommended");
   if (!el) return;
-  if (!items.length) {
+  if (!families.length) {
     el.innerHTML = "";
     return;
   }
-  el.innerHTML = items.map((r) => `
-    <li class="model-card model-rec-card${r.is_current ? " is-current" : ""}${r.downloaded ? " is-downloaded" : ""}">
-      <div class="model-card-head">
-        <div class="model-card-title">
-          <span class="model-name">${escape(r.name)}</span>
-          <span class="model-badge model-badge-backend">${escape(r.backend)}</span>
-          ${r.languages.length ? `<span class="model-langs">${r.languages.map(escape).join(" · ")}</span>` : ""}
-          ${r.is_current ? '<span class="model-badge model-badge-current">当前激活</span>' : (r.downloaded ? '<span class="model-badge model-badge-downloaded">已下载</span>' : "")}
-        </div>
-        <div class="model-card-right">
-          <span class="model-size">${escape(r.size_human)}</span>
-          <div class="model-actions">
-            ${r.downloaded
-              ? (r.is_current
-                  ? ""
-                  : `<button class="model-act-btn model-act-activate" data-action="activate" data-name="${escape(r.target_name)}">使用此模型</button>`)
-              : `<button class="model-act-btn model-act-download" data-action="download" data-id="${escape(r.model_id)}">下载</button>`}
-          </div>
-        </div>
-      </div>
-      <div class="model-rec-summary">${escape(r.summary)}</div>
-      <div class="model-card-path" title="${escape(r.model_id)}">${escape(r.model_id)}</div>
-    </li>
-  `).join("");
+  el.innerHTML = families.map((f) => renderFamilyCard(f)).join("");
   el.onclick = handleModelAction;
+}
+
+function renderFamilyCard(f) {
+  const downloadedCount = f.variants.filter((v) => v.downloaded).length;
+  const statusBadge = f.any_current
+    ? '<span class="model-badge model-badge-current">当前激活</span>'
+    : (downloadedCount > 0
+        ? `<span class="model-badge model-badge-downloaded">${downloadedCount}/${f.variant_count} 已下载</span>`
+        : `<span class="model-badge model-badge-soft">${f.variant_count} 个版本</span>`);
+
+  // 展开默认状态：family 内已下载或当前激活 → 展开；否则收起
+  const open = f.any_downloaded || f.any_current;
+  return `
+    <li class="model-card model-family-card${f.any_current ? " is-current" : ""}${f.any_downloaded ? " is-downloaded" : ""}">
+      <details${open ? " open" : ""}>
+        <summary class="family-summary">
+          <div class="family-summary-main">
+            <span class="model-name">${escape(f.name)}</span>
+            ${statusBadge}
+            ${f.languages.length ? `<span class="model-langs">${f.languages.map(escape).join(" · ")}</span>` : ""}
+          </div>
+          <span class="family-caret" aria-hidden="true">▾</span>
+        </summary>
+        <div class="family-summary-text">${escape(f.summary)}</div>
+        <ul class="variants-list">
+          ${f.variants.map(renderVariantRow).join("")}
+        </ul>
+      </details>
+    </li>
+  `;
+}
+
+function renderVariantRow(v) {
+  const stateBadge = v.is_current
+    ? '<span class="model-badge model-badge-current">当前激活</span>'
+    : (v.downloaded ? '<span class="model-badge model-badge-downloaded">已下载</span>' : "");
+  const action = v.downloaded
+    ? (v.is_current
+        ? ""
+        : `<button class="model-act-btn model-act-activate" data-action="activate" data-name="${escape(v.target_name)}">使用此模型</button>`)
+    : `<button class="model-act-btn model-act-download" data-action="download" data-id="${escape(v.model_id)}">下载</button>`;
+
+  return `
+    <li class="variant-row${v.is_current ? " is-current" : ""}">
+      <div class="variant-main">
+        <span class="variant-label">${escape(v.label)}</span>
+        <span class="model-badge model-badge-backend">${escape(v.backend)}</span>
+        ${stateBadge}
+        <span class="variant-summary">${escape(v.summary || "")}</span>
+      </div>
+      <div class="variant-aside">
+        <span class="model-size">${escape(v.size_human)}</span>
+        ${action}
+      </div>
+      <div class="variant-id" title="${escape(v.model_id)}">${escape(v.model_id)}</div>
+    </li>
+  `;
 }
 
 async function handleModelAction(e) {

@@ -2434,6 +2434,113 @@ audio {
   border-color: rgba(168, 132, 255, 0.4);
 }
 
+/* family 卡片：含一个 details/summary 折叠器 */
+.model-family-card {
+  padding: 0;
+  overflow: hidden;
+}
+.model-family-card.is-current {
+  border-color: rgba(16, 185, 129, 0.5);
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.2);
+}
+.model-family-card.is-downloaded:not(.is-current) {
+  border-color: rgba(168, 132, 255, 0.35);
+}
+
+.model-family-card details summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  transition: background 150ms;
+}
+.model-family-card details summary::-webkit-details-marker { display: none; }
+.model-family-card details summary:hover { background: var(--bg-soft); }
+
+.family-summary-main {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.family-caret {
+  color: var(--fg-dim);
+  font-size: 13px;
+  transition: transform 200ms;
+}
+.model-family-card details[open] .family-caret { transform: rotate(180deg); }
+
+.family-summary-text {
+  padding: 0 20px 12px;
+  font-size: 13px;
+  color: var(--fg-mid);
+  line-height: 1.55;
+}
+
+.variants-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--border-soft);
+  background: var(--bg-soft);
+}
+.variant-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "main aside"
+    "id   id";
+  gap: 4px 14px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.variant-row:last-child { border-bottom: none; }
+.variant-row.is-current {
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.variant-main {
+  grid-area: main;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.variant-label {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--fg-strong);
+}
+.variant-summary {
+  color: var(--fg-mid);
+  font-size: 12.5px;
+}
+.variant-aside {
+  grid-area: aside;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.variant-id {
+  grid-area: id;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: var(--fg-dim);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-badge-soft {
+  background: var(--bg-soft);
+  color: var(--fg-dim);
+  border: 1px solid var(--border-soft);
+}
+
 .model-badge-backend {
   background: rgba(168, 132, 255, 0.16);
   color: var(--hl);
