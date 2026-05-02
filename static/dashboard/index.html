@@ -392,11 +392,6 @@
         <span class="muted" id="models-meta"></span>
       </header>
 
-      <p class="hotwords-hint">
-        模型放在 <code>models/</code> 目录下。当前激活的模型用绿色边框标记，转录请求都使用它。
-        点击推荐区的「下载」即可获取新模型，下载完成后可一键切换。
-      </p>
-
       <div id="models-error" class="hotwords-error" hidden></div>
 
       <div class="model-task-card" id="model-task-card" hidden>
@@ -453,7 +448,6 @@
             <button data-mode="table" class="active">表格</button>
             <button data-mode="raw">原文</button>
           </div>
-          <button class="filter-reset" id="hotwords-add-btn" type="button">+ 新增</button>
           <button class="filter-reset hotwords-save" id="hotwords-save-btn" type="button">保存</button>
         </div>
       </header>
@@ -479,6 +473,7 @@
           </thead>
           <tbody id="hotwords-tbody"></tbody>
         </table>
+        <button class="hotwords-add-row" id="hotwords-add-btn" type="button">+ 新增热词</button>
       </div>
 
       <!-- 原文 toml 视图 -->
@@ -487,6 +482,18 @@
       </div>
     </section>
   </main>
+
+  <!-- 通用确认弹窗 -->
+  <dialog class="confirm-dialog" id="confirm-dialog">
+    <div class="confirm-card">
+      <div class="confirm-title" id="confirm-title">确认操作</div>
+      <div class="confirm-message" id="confirm-message"></div>
+      <div class="confirm-actions">
+        <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel" type="button">取消</button>
+        <button class="confirm-btn confirm-btn-ok" id="confirm-ok" type="button">确认</button>
+      </div>
+    </div>
+  </dialog>
 
   <script src="vendor/chart.umd.js"></script>
   <script src="app.js"></script>

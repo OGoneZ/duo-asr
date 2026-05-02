@@ -106,6 +106,55 @@ async function fetchJSON(url) {
   return r.json();
 }
 
+// ---------- 通用确认弹窗 ----------
+// 替代 native confirm()。返回 Promise<boolean>，true 表示用户点了确认。
+// danger=true 时确认按钮变红，焦点默认放到取消按钮（避免误触）。
+function customConfirm({ title = "确认操作", message = "", confirmText = "确认", cancelText = "取消", danger = false } = {}) {
+  return new Promise((resolve) => {
+    const dlg = document.getElementById("confirm-dialog");
+    if (!dlg || typeof dlg.showModal !== "function") {
+      // 兜底：浏览器不支持 <dialog>
+      resolve(window.confirm(message || title));
+      return;
+    }
+    dlg.querySelector("#confirm-title").textContent = title;
+    dlg.querySelector("#confirm-message").textContent = message;
+    const ok = dlg.querySelector("#confirm-ok");
+    const cancel = dlg.querySelector("#confirm-cancel");
+    ok.textContent = confirmText;
+    cancel.textContent = cancelText;
+    ok.classList.toggle("is-danger", !!danger);
+
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      ok.removeEventListener("click", onOk);
+      cancel.removeEventListener("click", onCancel);
+      dlg.removeEventListener("click", onBackdrop);
+      dlg.removeEventListener("close", onClose);
+      try { dlg.close(); } catch {}
+      resolve(value);
+    };
+    const onOk = () => finish(true);
+    const onCancel = () => finish(false);
+    const onClose = () => finish(false);
+    const onBackdrop = (e) => {
+      // 点击 backdrop（事件 target 是 dialog 本身）→ 关闭
+      if (e.target === dlg) finish(false);
+    };
+
+    ok.addEventListener("click", onOk);
+    cancel.addEventListener("click", onCancel);
+    dlg.addEventListener("click", onBackdrop);
+    dlg.addEventListener("close", onClose, { once: true });
+
+    dlg.showModal();
+    // 危险操作焦点放 cancel；普通操作焦点放 ok 便于回车确认
+    setTimeout(() => (danger ? cancel : ok).focus(), 30);
+  });
+}
+
 // ---------- 状态 ----------
 const VIEWS = ["home", "history", "transcribe", "hotwords", "models"];
 let currentView = null;       // 初始 null：首次 syncRoute 必触发数据加载
@@ -1168,7 +1217,6 @@ function syncHotwordsModeUI() {
   });
   document.getElementById("hotwords-table-view").hidden = hotwordsMode !== "table";
   document.getElementById("hotwords-raw-view").hidden = hotwordsMode !== "raw";
-  document.getElementById("hotwords-add-btn").hidden = hotwordsMode !== "table";
 }
 
 function showHotwordsError(msg) {
@@ -1757,7 +1805,12 @@ async function handleModelAction(e) {
 }
 
 async function activateModel(name, btn) {
-  if (!confirm(`将激活模型切换为「${name}」？\n切换期间会释放当前模型并加载新模型，可能需要十几秒，期间转录请求会等待。`)) return;
+  const ok = await customConfirm({
+    title: "切换激活模型",
+    message: `将激活模型切换为「${name}」？切换期间会释放当前模型并加载新模型，可能需要十几秒，期间转录请求会等待。`,
+    confirmText: "切换",
+  });
+  if (!ok) return;
   const orig = btn.textContent;
   btn.disabled = true;
   btn.textContent = "切换中…";
@@ -1789,7 +1842,13 @@ async function activateModel(name, btn) {
 }
 
 async function deleteModel(name, btn) {
-  if (!confirm(`确认删除模型「${name}」？此操作会删除整个目录，无法撤销。`)) return;
+  const ok = await customConfirm({
+    title: "删除模型",
+    message: `确认删除模型「${name}」？此操作会删除整个目录，无法撤销。`,
+    confirmText: "删除",
+    danger: true,
+  });
+  if (!ok) return;
   btn.disabled = true;
   btn.textContent = "删除中…";
   try {

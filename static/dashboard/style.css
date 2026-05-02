@@ -1917,6 +1917,25 @@ audio {
   font-style: italic;
 }
 
+/* 表底「+ 新增热词」按钮 */
+.hotwords-add-row {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-top: 1px dashed var(--border-soft);
+  background: transparent;
+  color: var(--fg-dim);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 150ms, color 150ms;
+}
+.hotwords-add-row:hover {
+  background: var(--bg-soft);
+  color: var(--hl);
+}
+
 /* 拨动开关 */
 .hw-switch {
   position: relative;
@@ -3018,6 +3037,97 @@ audio {
   color: var(--fg-dim);
   font-variant-numeric: tabular-nums;
 }
+
+/* ── 通用确认弹窗 ──────────────────────────────────────────── */
+
+.confirm-dialog {
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: auto;
+  max-width: 460px;
+  width: calc(100vw - 32px);
+  /* dialog 自身只做容器，视觉在 .confirm-card 上 */
+}
+.confirm-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  animation: dlg-fade-in 180ms ease-out;
+}
+.confirm-dialog[open] {
+  animation: dlg-fade-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes dlg-fade-in {
+  from { opacity: 0; transform: translateY(-12px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)     scale(1); }
+}
+
+.confirm-card {
+  padding: 24px 26px 20px;
+  border-radius: 18px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(20px);
+}
+[data-theme="light"] .confirm-card {
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.18);
+}
+
+.confirm-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg-strong);
+  margin-bottom: 10px;
+}
+.confirm-message {
+  font-size: 13.5px;
+  color: var(--fg-mid);
+  line-height: 1.7;
+  margin-bottom: 22px;
+  white-space: pre-line;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.confirm-btn {
+  padding: 8px 22px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: transparent;
+  color: var(--fg-mid);
+  font-size: 13.5px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+  min-width: 86px;
+}
+.confirm-btn-cancel:hover {
+  color: var(--fg-strong);
+  border-color: var(--border);
+  background: var(--bg-soft);
+}
+.confirm-btn-ok {
+  background: var(--hl);
+  border-color: var(--hl);
+  color: white;
+  font-weight: 500;
+}
+.confirm-btn-ok:hover { filter: brightness(1.06); }
+.confirm-btn-ok:focus-visible { outline: 2px solid var(--hl); outline-offset: 2px; }
+
+.confirm-btn-ok.is-danger {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+[data-theme="light"] .confirm-btn-ok.is-danger {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+.confirm-btn-ok.is-danger:hover { filter: brightness(1.08); }
 
 /* 动画偏好 */
 @media (prefers-reduced-motion: reduce) {
