@@ -24,13 +24,19 @@ from app.logger import setup_logger
 logger = setup_logger(__name__)
 
 
+class _DownloadCancelled(Exception):
+    """ProgressCallback 检测到 task.cancel_requested 时抛出，
+    打断 modelscope snapshot_download 的同步阻塞。"""
+
+
 @dataclass
 class DownloadTask:
     task_id: str
     model_id: str            # modelscope 上的完整 id，如 "iic/SenseVoiceSmall"
     target_name: str         # 本地落点 models/<target_name>/
-    state: str = "queued"    # queued / running / done / error
+    state: str = "queued"    # queued / running / done / error / cancelled
     error: str | None = None
+    cancel_requested: bool = False    # 用户点了取消/暂停 → callback 检测后 raise
     started_at: float | None = None
     ended_at: float | None = None
     files: dict[str, dict] = field(default_factory=dict)
@@ -115,6 +121,9 @@ def _make_callback_class(task: DownloadTask) -> Type[ProgressCallback]:
             self._filename = filename
 
         def update(self, size: int):
+            # 在写入前检查取消标记：以 chunk 为粒度打断下载
+            if task.cancel_requested:
+                raise _DownloadCancelled()
             with task.lock:
                 meta = task.files.get(self._filename)
                 if meta is not None:
@@ -175,6 +184,19 @@ def get(task_id: str) -> DownloadTask | None:
         return _tasks.get(task_id)
 
 
+def cancel(task_id: str) -> bool:
+    """请求取消任务。下次 ProgressCallback.update 调用时打断。
+    返回 True 表示任务存在且尚未结束。"""
+    with _tasks_lock:
+        task = _tasks.get(task_id)
+    if task is None:
+        return False
+    if task.state in ("done", "error", "cancelled"):
+        return False
+    task.cancel_requested = True
+    return True
+
+
 def list_recent(limit: int = 20) -> list[DownloadTask]:
     """按 started_at 倒序，未开始的排在最后。"""
     with _tasks_lock:
@@ -200,20 +222,25 @@ def _run_task(task: DownloadTask) -> None:
                 model_id=task.model_id,
                 local_dir=str(target_dir),
                 progress_callbacks=[cb_cls],
+                max_workers=8,
             )
             with task.lock:
                 task.state = "done"
                 task.ended_at = time.time()
             logger.info("下载完成 %s（%.1fs，%d 文件）", task.model_id,
                         (task.ended_at - task.started_at), len(task.files))
+        except _DownloadCancelled:
+            # 用户主动取消：保留 ._____temp 残留（modelscope 下次 submit 自动续传）
+            logger.info("下载已取消 %s（保留临时文件用于续传）", task.model_id)
+            with task.lock:
+                task.state = "cancelled"
+                task.ended_at = time.time()
         except Exception as exc:
             logger.exception("下载失败 %s", task.model_id)
             with task.lock:
                 task.state = "error"
                 task.error = str(exc)
                 task.ended_at = time.time()
-            # 失败时清理半下载的目录，避免下次 submit 撞 FileExistsError
-            _cleanup_partial(target_dir)
 
 
 def _cleanup_partial(path: Path) -> None:

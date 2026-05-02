@@ -735,6 +735,40 @@
   color: #fca5a5;
 }
 [data-theme="light"] .model-task-state.state-error { color: #b91c1c; }
+.model-task-state.state-cancelled {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+}
+[data-theme="light"] .model-task-state.state-cancelled { color: #b45309; }
+
+/* 暂停 / 取消 按钮（进度卡右侧）*/
+.model-task-head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.model-task-btn {
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: transparent;
+  color: var(--fg-mid);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.model-task-btn:hover:not(:disabled) {
+  color: var(--fg-strong);
+  border-color: var(--hl);
+}
+.model-task-btn-danger:hover:not(:disabled) {
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.08);
+}
+.model-task-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .model-task-progress {
   display: flex;

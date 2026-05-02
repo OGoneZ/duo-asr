@@ -11,7 +11,13 @@
       <div class="model-task-card" id="model-task-card" hidden>
         <div class="model-task-head">
           <span class="model-task-id" id="model-task-name"></span>
-          <span class="model-task-state" id="model-task-state"></span>
+          <div class="model-task-head-right">
+            <span class="model-task-state" id="model-task-state"></span>
+            <button class="model-task-btn" id="model-task-pause" type="button"
+                    title="暂停下载，保留已下载部分；下次点「继续下载」会从断点续传">暂停</button>
+            <button class="model-task-btn model-task-btn-danger" id="model-task-cancel" type="button"
+                    title="取消并清理所有已下载文件">取消</button>
+          </div>
         </div>
         <div class="model-task-progress">
           <div class="model-task-bar"><span id="model-task-bar-fill"></span></div>

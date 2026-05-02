@@ -317,6 +317,17 @@ async def get_model_downloads():
     return {"items": [t.to_dict() for t in downloader.list_recent()]}
 
 
+@router.post("/api/models/download/{task_id}/cancel")
+async def post_model_download_cancel(task_id: str):
+    """暂停/取消下载。modelscope 自带 hash 续传，下次 submit 同一 model_id
+    会从临时文件恢复进度（即「暂停」）；要彻底放弃 → 再调用
+    DELETE /api/models/{name} 把残留目录删掉。"""
+    ok = downloader.cancel(task_id)
+    if not ok:
+        raise HTTPException(404, "任务不存在或已结束")
+    return {"ok": True}
+
+
 @router.get("/api/models/search")
 async def search_modelscope(
     q: str = Query("", description="模糊关键词，匹配模型名"),

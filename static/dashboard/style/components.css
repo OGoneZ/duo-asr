@@ -469,9 +469,7 @@
   border-color: color-mix(in srgb, var(--hl) 30%, transparent);
 }
 
-/* ================================================================
- * 关键词高亮 + diff
-
+/* ── filter-row 响应式：窄屏隐藏 divider + filter-reset 不再 auto-margin ── */
 @media (max-width: 720px) {
   .filter-divider { display: none; }
   .filter-reset { margin-left: 0; }
@@ -481,12 +479,17 @@
 
 .confirm-dialog {
   border: none;
+  outline: none;       /* 去掉浏览器默认 focus outline（截图看到的黑框）*/
   background: transparent;
   padding: 0;
   margin: auto;
   max-width: 460px;
   width: calc(100vw - 32px);
   /* dialog 自身只做容器，视觉在 .confirm-card 上 */
+}
+.confirm-dialog:focus,
+.confirm-dialog:focus-visible {
+  outline: none;
 }
 .confirm-dialog::backdrop {
   background: rgba(0, 0, 0, 0.5);

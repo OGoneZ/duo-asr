@@ -15,9 +15,10 @@ from app import config
 @dataclass
 class ModelInfo:
     name: str
-    path: str           # 字符串化的绝对路径
+    path: str
     size_bytes: int
-    valid: bool         # 目录里是否有 config.json
+    valid: bool         # 目录里是否有 config 文件
+    complete: bool      # 下载完整（无 modelscope 残留临时目录）
     is_current: bool
 
     def to_dict(self) -> dict:
@@ -27,6 +28,7 @@ class ModelInfo:
             "size_bytes": self.size_bytes,
             "size_human": _humanize_size(self.size_bytes),
             "valid": self.valid,
+            "complete": self.complete,
             "is_current": self.is_current,
         }
 
@@ -56,11 +58,16 @@ def list_models() -> list[ModelInfo]:
             (entry / fname).is_file()
             for fname in ("config.json", "configuration.json", "config.yaml")
         )
+        # ModelScope 下载未完成时会留下 ._____temp/ 子目录，里面是部分下载的
+        # 大权重文件。完成后该目录被 SDK 清空。检测它的存在 = 未完成。
+        temp_dir = entry / "._____temp"
+        complete = not (temp_dir.is_dir() and any(temp_dir.iterdir()))
         out.append(ModelInfo(
             name=entry.name,
             path=str(entry.resolve()),
             size_bytes=_dir_size(entry),
             valid=valid,
+            complete=complete,
             is_current=(entry.name == current_name),
         ))
     return out

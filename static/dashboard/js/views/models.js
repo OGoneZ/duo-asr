@@ -52,12 +52,76 @@ export async function mount() {
     });
   }
 
+  // 暂停 / 取消按钮
+  const pauseBtn = document.getElementById("model-task-pause");
+  const cancelBtn = document.getElementById("model-task-cancel");
+  if (pauseBtn) pauseBtn.addEventListener("click", () => pauseDownload());
+  if (cancelBtn) cancelBtn.addEventListener("click", () => cancelDownload());
+
   await loadModels();
 }
 
 export function unmount() {
   stopModelDownloadPolling();
   if (modelSearchTimer) { clearTimeout(modelSearchTimer); modelSearchTimer = null; }
+}
+
+async function pauseDownload() {
+  if (!modelDownloadActiveTaskId) return;
+  const ok = await customConfirm({
+    title: "暂停下载",
+    message: "暂停后会保留已下载文件，下次点「继续下载」会从断点续传。",
+    confirmText: "暂停",
+  });
+  if (!ok) return;
+  try {
+    const r = await fetch(`/api/models/download/${modelDownloadActiveTaskId}/cancel`, { method: "POST" });
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({}));
+      showModelsError(`暂停失败：${body.error || r.status}`);
+      return;
+    }
+    // polling 会观察到 state=cancelled 自动停下，并刷新列表显示「未下完」
+  } catch (err) {
+    showModelsError(`暂停失败：${err.message || err}`);
+  }
+}
+
+async function cancelDownload() {
+  if (!modelDownloadActiveTaskId) return;
+  // 取消时需要任务的 target_name 来删除目录
+  let targetName = null;
+  try {
+    const t = await fetchJSON(`/api/models/download/${modelDownloadActiveTaskId}`);
+    targetName = t.target_name;
+  } catch {}
+
+  const ok = await customConfirm({
+    title: "取消下载",
+    message: "取消并删除所有已下载文件，无法恢复。",
+    confirmText: "取消下载",
+    danger: true,
+  });
+  if (!ok) return;
+  try {
+    // 1. 先 cancel 任务（避免删目录时仍在写）
+    await fetch(`/api/models/download/${modelDownloadActiveTaskId}/cancel`, { method: "POST" });
+    // 2. 等任务真停下来（最多 3 秒）
+    for (let i = 0; i < 6; i++) {
+      const t = await fetchJSON(`/api/models/download/${modelDownloadActiveTaskId}`);
+      if (t.state !== "queued" && t.state !== "running") break;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    // 3. 删目录
+    if (targetName) {
+      await fetch(`/api/models/${encodeURIComponent(targetName)}`, { method: "DELETE" });
+    }
+    stopModelDownloadPolling();
+    document.getElementById("model-task-card").hidden = true;
+    await loadModels();
+  } catch (err) {
+    showModelsError(`取消失败：${err.message || err}`);
+  }
 }
 
 async function loadModels() {
@@ -72,10 +136,13 @@ async function loadModels() {
     ]);
     activeDownloads = (dl.items || []).filter((t) => t.state === "queued" || t.state === "running");
     const downloadingNames = new Set(activeDownloads.map((t) => t.target_name));
+    const incompleteNames = new Set(
+      (data.items || []).filter((m) => m.complete === false).map((m) => m.name),
+    );
     document.getElementById("models-meta").textContent =
       `${data.items.length} 个已下载 · ${escape(data.models_dir)}`;
     renderModels(data.items, data.active, downloadingNames);
-    renderRecommended(data.recommended || [], downloadingNames);
+    renderRecommended(data.recommended || [], downloadingNames, incompleteNames);
   } catch (err) {
     showModelsError(`加载失败：${escape(err.message || err)}`);
     el.innerHTML = "";
@@ -96,23 +163,30 @@ function renderModels(items, active, downloadingNames = new Set()) {
   }
   el.innerHTML = items.map((m) => {
     const downloading = downloadingNames.has(m.name);
+    const incomplete = m.complete === false;   // 留有 modelscope 残留临时目录
     const downloadingBadge = downloading
       ? '<span class="model-badge model-badge-downloading">下载中</span>'
       : "";
+    const incompleteBadge = (incomplete && !downloading)
+      ? '<span class="model-badge model-badge-warn">未下完</span>'
+      : "";
     const showActions = !downloading;
+    // incomplete 模型禁止 activate（加载会失败）；可以删除 / 重新下载
+    const canActivate = showActions && !m.is_current && m.valid && !incomplete;
     return `
-    <li class="model-card${m.is_current ? " is-current" : ""}${m.valid ? "" : " is-invalid"}${downloading ? " is-downloading" : ""}">
+    <li class="model-card${m.is_current ? " is-current" : ""}${m.valid ? "" : " is-invalid"}${downloading ? " is-downloading" : ""}${incomplete ? " is-incomplete" : ""}">
       <div class="model-card-head">
         <div class="model-card-title">
           <span class="model-name">${escape(m.name)}</span>
           ${m.is_current ? '<span class="model-badge model-badge-current">当前激活</span>' : ""}
           ${downloadingBadge}
-          ${m.valid || downloading ? "" : '<span class="model-badge model-badge-warn">无 config 文件</span>'}
+          ${incompleteBadge}
+          ${m.valid || downloading || incomplete ? "" : '<span class="model-badge model-badge-warn">无 config 文件</span>'}
         </div>
         <div class="model-card-right">
           <span class="model-size">${escape(m.size_human)}</span>
           <div class="model-actions">
-            ${showActions && !m.is_current && m.valid ? `<button class="model-act-btn model-act-activate" data-action="activate" data-name="${escape(m.name)}">使用此模型</button>` : ""}
+            ${canActivate ? `<button class="model-act-btn model-act-activate" data-action="activate" data-name="${escape(m.name)}">使用此模型</button>` : ""}
             ${showActions && !m.is_current ? `<button class="model-act-btn model-act-delete" data-action="delete" data-name="${escape(m.name)}">删除</button>` : ""}
           </div>
         </div>
@@ -124,18 +198,18 @@ function renderModels(items, active, downloadingNames = new Set()) {
   el.onclick = handleModelAction;
 }
 
-function renderRecommended(families, downloadingNames = new Set()) {
+function renderRecommended(families, downloadingNames = new Set(), incompleteNames = new Set()) {
   const el = document.getElementById("models-recommended");
   if (!el) return;
   if (!families.length) {
     el.innerHTML = "";
     return;
   }
-  el.innerHTML = families.map((f) => renderFamilyCard(f, downloadingNames)).join("");
+  el.innerHTML = families.map((f) => renderFamilyCard(f, downloadingNames, incompleteNames)).join("");
   el.onclick = handleModelAction;
 }
 
-function renderFamilyCard(f, downloadingNames = new Set()) {
+function renderFamilyCard(f, downloadingNames = new Set(), incompleteNames = new Set()) {
   const downloadedCount = f.variants.filter((v) => v.downloaded).length;
   const statusBadge = f.any_current
     ? '<span class="model-badge model-badge-current">当前激活</span>'
@@ -157,23 +231,29 @@ function renderFamilyCard(f, downloadingNames = new Set()) {
         </summary>
         <div class="family-summary-text">${escape(f.summary)}</div>
         <ul class="variants-list">
-          ${f.variants.map((v) => renderVariantRow(v, downloadingNames)).join("")}
+          ${f.variants.map((v) => renderVariantRow(v, downloadingNames, incompleteNames)).join("")}
         </ul>
       </details>
     </li>
   `;
 }
 
-function renderVariantRow(v, downloadingNames = new Set()) {
+function renderVariantRow(v, downloadingNames = new Set(), incompleteNames = new Set()) {
   const downloading = downloadingNames.has(v.target_name);
+  const incomplete = !downloading && incompleteNames.has(v.target_name);
   const stateBadge = downloading
     ? '<span class="model-badge model-badge-downloading">下载中</span>'
-    : (v.is_current
-        ? '<span class="model-badge model-badge-current">当前激活</span>'
-        : (v.downloaded ? '<span class="model-badge model-badge-downloaded">已下载</span>' : ""));
+    : (incomplete
+        ? '<span class="model-badge model-badge-warn">未下完</span>'
+        : (v.is_current
+            ? '<span class="model-badge model-badge-current">当前激活</span>'
+            : (v.downloaded ? '<span class="model-badge model-badge-downloaded">已下载</span>' : "")));
   let action;
   if (downloading) {
     action = "";
+  } else if (incomplete) {
+    // 未下完的模型显示「继续下载」按钮（modelscope 自动续传）
+    action = `<button class="model-act-btn model-act-download" data-action="download" data-id="${escape(v.model_id)}">继续下载</button>`;
   } else if (v.downloaded) {
     action = v.is_current
       ? ""
@@ -347,8 +427,12 @@ function startModelDownloadPolling(taskId) {
     try {
       const data = await fetchJSON(`/api/models/download/${taskId}`);
       renderDownloadTask(data);
-      if (data.state === "done" || data.state === "error") {
+      if (data.state === "done" || data.state === "error" || data.state === "cancelled") {
         stopModelDownloadPolling();
+        // 任务结束 → 隐藏进度卡 + 刷新列表（让 incomplete 状态正确显示）
+        if (data.state !== "running") {
+          document.getElementById("model-task-card").hidden = true;
+        }
         loadModels();
       }
     } catch (err) {
@@ -390,7 +474,10 @@ function renderDownloadTask(t) {
 }
 
 function stateLabel(s) {
-  return ({ queued: "排队中", running: "下载中", done: "已完成", error: "失败" })[s] || s;
+  return ({
+    queued: "排队中", running: "下载中",
+    done: "已完成", error: "失败", cancelled: "已暂停",
+  })[s] || s;
 }
 
 // ---- 搜索 ----
