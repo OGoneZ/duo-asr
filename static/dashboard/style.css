@@ -2438,10 +2438,20 @@ audio {
 .model-family-card {
   padding: 0;
   overflow: hidden;
+  transition: border-color 180ms, background 180ms, box-shadow 180ms, transform 180ms;
+}
+/* 整张卡片 hover：无论展开与否，hover 在 li 上时整体变色 */
+.model-family-card:hover:not(.is-current) {
+  border-color: rgba(168, 132, 255, 0.5);
+  background: color-mix(in srgb, var(--bg-elevated) 85%, var(--hl-soft));
+  box-shadow: 0 8px 24px -10px rgba(0, 0, 0, 0.18);
 }
 .model-family-card.is-current {
   border-color: rgba(16, 185, 129, 0.5);
   box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.2);
+}
+.model-family-card.is-current:hover {
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.25), 0 8px 24px -10px rgba(0, 0, 0, 0.18);
 }
 .model-family-card.is-downloaded:not(.is-current) {
   border-color: rgba(168, 132, 255, 0.35);
@@ -2456,10 +2466,9 @@ audio {
   cursor: pointer;
   list-style: none;
   user-select: none;
-  transition: background 150ms;
 }
 .model-family-card details summary::-webkit-details-marker { display: none; }
-.model-family-card details summary:hover { background: var(--bg-soft); }
+/* 不再单独 hover summary —— 整张卡片统一 hover 视觉 */
 
 .family-summary-main {
   display: flex;
@@ -2486,7 +2495,7 @@ audio {
   margin: 0;
   padding: 0;
   border-top: 1px solid var(--border-soft);
-  background: var(--bg-soft);
+  /* 不设独立背景，与 family 卡片同色，hover 时整体一致变色 */
 }
 .variant-row {
   display: grid;
@@ -2535,8 +2544,8 @@ audio {
   flex-shrink: 0;
 }
 .variant-storage {
-  font-size: 12.5px;
-  color: var(--fg-mid);
+  font-size: 11.5px;
+  color: var(--fg-dim);
   font-variant-numeric: tabular-nums;
 }
 
