@@ -1,0 +1,58 @@
+<section class="view view-transcribe" data-view="transcribe">
+      <header class="view-header">
+        <div class="view-title">
+          <h1>在线转录<span class="view-eyebrow">Transcribe</span></h1>
+        </div>
+        <span class="muted" id="trans-server-info"></span>
+      </header>
+
+      <div class="trans-input">
+        <div class="trans-dropzone" id="trans-dropzone" tabindex="0">
+          <input type="file" id="trans-file" accept="audio/*,.wav,.mp3,.m4a,.flac,.ogg,.opus,.webm" hidden>
+          <span class="trans-dz-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v12"/>
+              <path d="m6 9 6-6 6 6"/>
+              <path d="M5 21h14"/>
+            </svg>
+          </span>
+          <div class="trans-dz-title">拖入音频文件，或点击选择</div>
+          <div class="trans-dz-sub">支持 wav / mp3 / m4a / flac / ogg / opus / webm</div>
+        </div>
+
+        <div class="trans-or">或</div>
+
+        <div class="trans-recorder">
+          <button class="trans-rec-btn" id="trans-rec-btn" type="button" aria-label="开始录音">
+            <span class="trans-rec-dot" aria-hidden="true"></span>
+            <span class="trans-rec-label" id="trans-rec-label">开始录音</span>
+          </button>
+          <div class="trans-rec-meta">
+            <span class="trans-rec-time" id="trans-rec-time">00:00</span>
+            <div class="trans-rec-meter" aria-hidden="true">
+              <span class="trans-rec-meter-bar" id="trans-rec-meter-bar"></span>
+            </div>
+          </div>
+          <div class="trans-rec-hint" id="trans-rec-hint">录音将打包为 WAV 提交，无需后端依赖</div>
+        </div>
+      </div>
+
+      <div class="trans-status" id="trans-status" hidden></div>
+
+      <div class="trans-result" id="trans-result" hidden>
+        <div class="trans-result-head">
+          <span class="trans-result-eyebrow">转录结果</span>
+          <span class="trans-result-meta" id="trans-result-meta"></span>
+        </div>
+        <audio class="trans-result-audio" id="trans-result-audio" controls></audio>
+        <div class="trans-result-text" id="trans-result-text"></div>
+        <details class="trans-result-raw" id="trans-result-raw-wrap" hidden>
+          <summary>查看原始输出（后处理前）</summary>
+          <pre id="trans-result-raw"></pre>
+        </details>
+        <div class="trans-result-actions">
+          <button class="trans-copy-btn" id="trans-copy-btn" type="button">复制文本</button>
+          <button class="trans-reset-btn" id="trans-reset-btn" type="button">再来一段</button>
+        </div>
+      </div>
+</section>

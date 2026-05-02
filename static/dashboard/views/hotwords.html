@@ -1,0 +1,45 @@
+<section class="view view-hotwords" data-view="hotwords">
+      <header class="view-header">
+        <div class="view-title">
+          <h1>热词管理<span class="view-eyebrow">Hotwords</span></h1>
+        </div>
+      </header>
+
+      <p class="hotwords-hint" id="hotwords-hint">
+        热词词典会在保存后立即生效（无需重启服务）。每条规则把若干 <em>变体</em> 替换为左侧的 <em>目标词</em>。
+        勾选「按发音匹配」可让 ASR 把同音字也归并到目标词（中文场景）。
+      </p>
+
+      <div id="hotwords-error" class="hotwords-error" hidden></div>
+
+      <!-- 模式切换 + 保存：紧贴表格右上角 -->
+      <div class="hotwords-mode-bar">
+        <div class="segmented" id="hotwords-mode">
+          <button data-mode="table" class="active">表格</button>
+          <button data-mode="raw">原文</button>
+        </div>
+        <button class="filter-reset hotwords-save" id="hotwords-save-btn" type="button">保存</button>
+      </div>
+
+      <!-- 表格视图 -->
+      <div class="hotwords-table-wrap" id="hotwords-table-view">
+        <table class="hotwords-table">
+          <thead>
+            <tr>
+              <th class="hw-col-target">目标词</th>
+              <th class="hw-col-variants">变体（逗号分隔）</th>
+              <th class="hw-col-phonetic">按发音匹配</th>
+              <th class="hw-col-pinyin">拼音键（可选，逗号分隔）</th>
+              <th class="hw-col-action"></th>
+            </tr>
+          </thead>
+          <tbody id="hotwords-tbody"></tbody>
+        </table>
+        <button class="hotwords-add-row" id="hotwords-add-btn" type="button">+ 新增热词</button>
+      </div>
+
+      <!-- 原文 toml 视图 -->
+      <div class="hotwords-raw-wrap" id="hotwords-raw-view" hidden>
+        <textarea id="hotwords-raw" spellcheck="false" autocomplete="off"></textarea>
+      </div>
+</section>

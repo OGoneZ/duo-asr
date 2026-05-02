@@ -1,0 +1,134 @@
+<section class="view view-home" data-view="home">
+      <header class="view-header">
+        <div class="view-title">
+          <h1>概览<span class="view-eyebrow">Overview</span></h1>
+        </div>
+        <div class="toolbar">
+          <div class="dropdown" id="client-dropdown">
+            <button class="dropdown-toggle" id="client-toggle">
+              <span class="dot dot-violet" aria-hidden="true"></span>
+              <span id="client-toggle-label">全部</span>
+              <span class="dropdown-caret">▾</span>
+            </button>
+            <ul class="dropdown-menu" id="client-menu" hidden></ul>
+          </div>
+          <div class="segmented" id="period-switch">
+            <button data-days="7">7 天</button>
+            <button data-days="30" class="active">30 天</button>
+            <button data-days="90">90 天</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- 故事化标题：单行居中，两个关键数字加大放亮 -->
+      <section class="hero-banner" id="hero-banner">
+        <p class="hero-banner-text">
+          已运行 <span class="hero-big" id="hero-days">—</span> 天，<span class="brand-name">DuoASR</span> 为你节省了
+          <span class="hero-big" id="hero-saved">—</span> 打字时间。
+        </p>
+        <p class="hero-banner-sub" id="hero-sub">按 100 汉字 / 分钟手打估算</p>
+      </section>
+
+      <div class="cards">
+        <!-- Hero × 2 -->
+        <div class="card card-hero" data-tone="violet">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <path d="M12 19v3"/>
+            </svg>
+          </div>
+          <div class="card-label">累计输入语音</div>
+          <div class="card-value">
+            <span id="stat-duration">—</span><span class="card-unit" id="stat-duration-unit"></span>
+          </div>
+          <span class="card-glow" aria-hidden="true"></span>
+        </div>
+        <div class="card card-hero" data-tone="amber">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2"/>
+              <path d="M9 20h6"/>
+              <path d="M12 4v16"/>
+            </svg>
+          </div>
+          <div class="card-label">累计转录文字</div>
+          <div class="card-value">
+            <span id="stat-chars">—</span><span class="card-unit">字</span>
+          </div>
+          <span class="card-glow" aria-hidden="true"></span>
+        </div>
+
+        <!-- Small × 4 -->
+        <div class="card" data-tone="pink">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="6" width="20" height="12" rx="2"/>
+              <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>
+            </svg>
+          </div>
+          <div class="card-label">节省键盘敲击</div>
+          <div class="card-value">
+            <span id="stat-keystrokes">—</span><span class="card-unit">次</span>
+          </div>
+          <span class="card-glow" aria-hidden="true"></span>
+        </div>
+        <div class="card" data-tone="emerald">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/>
+            </svg>
+          </div>
+          <div class="card-label">平均语速</div>
+          <div class="card-value">
+            <span id="stat-cpm">—</span><span class="card-unit">字/分</span>
+          </div>
+          <span class="card-glow" aria-hidden="true"></span>
+        </div>
+        <div class="card" data-tone="teal">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M12 7v5l3 2"/>
+            </svg>
+          </div>
+          <div class="card-label">平均语音时长</div>
+          <div class="card-value">
+            <span id="stat-avg-dur">—</span><span class="card-unit">s</span>
+          </div>
+          <span class="card-glow" aria-hidden="true"></span>
+        </div>
+        <div class="card" data-tone="lilac">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2v4"/>
+              <path d="M12 18v4"/>
+              <path d="m4.93 4.93 2.83 2.83"/>
+              <path d="m16.24 16.24 2.83 2.83"/>
+              <path d="M2 12h4"/>
+              <path d="M18 12h4"/>
+              <path d="m4.93 19.07 2.83-2.83"/>
+              <path d="m16.24 7.76 2.83-2.83"/>
+            </svg>
+          </div>
+          <div class="card-label">平均推理耗时</div>
+          <div class="card-value">
+            <span id="stat-inference">—</span><span class="card-unit">s</span>
+          </div>
+          <span class="card-glow" aria-hidden="true"></span>
+        </div>
+      </div>
+
+      <div class="chart-section">
+        <div class="chart-head">
+          <h2>每日趋势</h2>
+          <div class="chart-legend">
+            <span class="legend-item"><i class="legend-swatch swatch-violet"></i>字数</span>
+            <span class="legend-item"><i class="legend-swatch swatch-emerald"></i>时长</span>
+          </div>
+        </div>
+        <span class="muted" id="chart-subtitle" hidden></span>
+        <div class="chart-wrap"><canvas id="daily-chart"></canvas></div>
+      </div>
+</section>
