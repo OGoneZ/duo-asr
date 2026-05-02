@@ -5,11 +5,13 @@ description = "Add your description here"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.136.0",
+    "funasr>=1.2.0",
     "librosa>=0.11.0",
     "modelscope>=1.21.0",
     "pypinyin>=0.55.0",
     "soundfile>=0.13.1",
     "torch>=2.11.0",
+    "torchaudio>=2.11.0",
     "uvicorn>=0.44.0",
     "qwen-asr",
 ]

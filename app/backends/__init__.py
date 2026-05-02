@@ -8,10 +8,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.backends.base import Backend, BackendError
+from app.backends.funasr import FunAsrBackend
 from app.backends.qwen import QwenAsrBackend
 
 # 注册顺序 = 检测优先级。第一个 ``can_handle`` 返回 True 的胜出。
-_REGISTRY: list[type[Backend]] = [QwenAsrBackend]
+# Qwen 优先：Qwen 模型目录里 config.json 含 architectures，FunASR 兜底
+_REGISTRY: list[type[Backend]] = [QwenAsrBackend, FunAsrBackend]
 
 
 def register(backend_cls: type[Backend]) -> None:
