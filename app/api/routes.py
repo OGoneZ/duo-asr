@@ -319,12 +319,22 @@ async def get_model_downloads():
 
 @router.post("/api/models/download/{task_id}/cancel")
 async def post_model_download_cancel(task_id: str):
-    """暂停/取消下载。modelscope 自带 hash 续传，下次 submit 同一 model_id
-    会从临时文件恢复进度（即「暂停」）；要彻底放弃 → 再调用
-    DELETE /api/models/{name} 把残留目录删掉。"""
+    """暂停下载（保留 ._____temp/ 残留供续传）。
+    下次 submit 同一 model_id 会从断点恢复。
+    要彻底放弃任务并删除残留 → 调用 /abort。"""
     ok = downloader.cancel(task_id)
     if not ok:
         raise HTTPException(404, "任务不存在或已结束")
+    return {"ok": True}
+
+
+@router.post("/api/models/download/{task_id}/abort")
+async def post_model_download_abort(task_id: str):
+    """彻底放弃下载：set cancel_requested + 立刻 rmtree 目标目录 +
+    后台兜底再 rmtree（modelscope worker 在下个 chunk 边界退出）。"""
+    ok = downloader.abort(task_id)
+    if not ok:
+        raise HTTPException(404, "任务不存在")
     return {"ok": True}
 
 

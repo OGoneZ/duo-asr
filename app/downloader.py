@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import shutil
 import threading
 import time
 import uuid
@@ -100,6 +101,7 @@ class DownloadTask:
                 ),
                 "speed_bps": int(self.speed_bps),
                 "eta_seconds": eta,
+                "cancel_requested": self.cancel_requested,
             }
 
 
@@ -185,7 +187,8 @@ def get(task_id: str) -> DownloadTask | None:
 
 
 def cancel(task_id: str) -> bool:
-    """请求取消任务。下次 ProgressCallback.update 调用时打断。
+    """请求取消任务（暂停语义）：保留 ._____temp/ 残留以便续传。
+    下次 ProgressCallback.update 调用时打断。
     返回 True 表示任务存在且尚未结束。"""
     with _tasks_lock:
         task = _tasks.get(task_id)
@@ -194,6 +197,54 @@ def cancel(task_id: str) -> bool:
     if task.state in ("done", "error", "cancelled"):
         return False
     task.cancel_requested = True
+    return True
+
+
+def abort(task_id: str) -> bool:
+    """彻底放弃任务（取消语义）：set cancel + 立刻清空目标目录 + 后台兜底再清一次。
+
+    与 cancel() 的区别：cancel 只是暂停（保留临时文件用于续传），
+    abort 是放弃（删除整个目标目录）。
+    返回 True 表示任务存在。
+    """
+    with _tasks_lock:
+        task = _tasks.get(task_id)
+    if task is None:
+        return False
+
+    target_dir = config.MODELS_DIR / task.target_name
+
+    # 1. 触发取消标记 + 立刻把 state 置为 cancelled
+    #    （否则 /api/models/downloads 的 active 过滤会继续看到这个任务还在跑，
+    #     前端 loadModels 把进度卡又显示出来）
+    #    modelscope worker 仍在 _run_lock 里跑，下个 chunk 边界后退出，
+    #    _run_task 的异常处理路径会再次 set state=cancelled（幂等）。
+    with task.lock:
+        if task.state in ("queued", "running"):
+            task.cancel_requested = True
+            task.state = "cancelled"
+            task.ended_at = time.time()
+
+    # 2. 立刻 rmtree 一次（modelscope worker 可能仍在写，靠 ignore_errors 容错）
+    if target_dir.is_dir():
+        shutil.rmtree(target_dir, ignore_errors=True)
+
+    # 3. 后台兜底：modelscope worker 退出后再 rmtree 一次（防止它在第 2 步后又写回）
+    def _final_cleanup() -> None:
+        # 等 worker 真退出：靠 _run_lock 串行 → 再次拿到 lock 就说明 worker 走了
+        with _run_lock:
+            pass
+        if target_dir.is_dir():
+            shutil.rmtree(target_dir, ignore_errors=True)
+        with _tasks_lock:
+            _tasks.pop(task.task_id, None)
+        logger.info("abort 清理完成: %s", task.target_name)
+
+    threading.Thread(
+        target=_final_cleanup,
+        name=f"abort-{task.task_id[:8]}",
+        daemon=True,
+    ).start()
     return True
 
 
@@ -230,17 +281,25 @@ def _run_task(task: DownloadTask) -> None:
             logger.info("下载完成 %s（%.1fs，%d 文件）", task.model_id,
                         (task.ended_at - task.started_at), len(task.files))
         except _DownloadCancelled:
-            # 用户主动取消：保留 ._____temp 残留（modelscope 下次 submit 自动续传）
             logger.info("下载已取消 %s（保留临时文件用于续传）", task.model_id)
             with task.lock:
                 task.state = "cancelled"
                 task.ended_at = time.time()
         except Exception as exc:
-            logger.exception("下载失败 %s", task.model_id)
-            with task.lock:
-                task.state = "error"
-                task.error = str(exc)
-                task.ended_at = time.time()
+            # modelscope 用线程池下载时会把 callback raise 的异常 wrap 成
+            # 别的类型，丢失 _DownloadCancelled 标识。靠 cancel_requested
+            # 标记区分：是不是用户取消引起的。
+            if task.cancel_requested:
+                logger.info("下载已取消 %s（异常路径，cancel_requested=True）", task.model_id)
+                with task.lock:
+                    task.state = "cancelled"
+                    task.ended_at = time.time()
+            else:
+                logger.exception("下载失败 %s", task.model_id)
+                with task.lock:
+                    task.state = "error"
+                    task.error = str(exc)
+                    task.ended_at = time.time()
 
 
 def _cleanup_partial(path: Path) -> None:

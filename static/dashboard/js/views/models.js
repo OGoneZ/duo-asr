@@ -80,14 +80,19 @@ async function pauseDownload() {
     confirmText: "暂停",
   });
   if (!ok) return;
+
+  const taskId = modelDownloadActiveTaskId;
   try {
-    const r = await fetch(`/api/models/download/${modelDownloadActiveTaskId}/cancel`, { method: "POST" });
+    const r = await fetch(`/api/models/download/${taskId}/cancel`, { method: "POST" });
     if (!r.ok) {
       const body = await r.json().catch(() => ({}));
       showModelsError(`暂停失败：${body.error || r.status}`);
       return;
     }
-    // polling 会观察到 state=cancelled 自动停下，并刷新列表显示「未下完」
+    // 后端 cancel_requested 已置 True；下一次 polling 拉到的状态会带这个字段，
+    // renderDownloadTask 会自动把按钮切到「停止中…」（disabled）。
+    // modelscope 在下一个 chunk 边界响应 → state 变成 cancelled →
+    // polling 检测到后切「继续/丢弃」按钮。
   } catch (err) {
     showModelsError(`暂停失败：${err.message || err}`);
   }
@@ -101,12 +106,7 @@ async function resumeDownload(modelId) {
 
 async function cancelDownload() {
   if (!modelDownloadActiveTaskId) return;
-  // 取消时需要任务的 target_name 来删除目录
-  let targetName = null;
-  try {
-    const t = await fetchJSON(`/api/models/download/${modelDownloadActiveTaskId}`);
-    targetName = t.target_name;
-  } catch {}
+  const taskId = modelDownloadActiveTaskId;
 
   const ok = await customConfirm({
     title: "取消下载",
@@ -115,25 +115,25 @@ async function cancelDownload() {
     danger: true,
   });
   if (!ok) return;
+
+  // 乐观 UI：立刻停止轮询、隐藏进度卡，让用户感觉"灵敏"
+  stopModelDownloadPolling();
+  document.getElementById("model-task-card").hidden = true;
+  modelDownloadActiveTaskId = null;
+
   try {
-    // 1. 先 cancel 任务（避免删目录时仍在写）
-    await fetch(`/api/models/download/${modelDownloadActiveTaskId}/cancel`, { method: "POST" });
-    // 2. 等任务真停下来（最多 3 秒）
-    for (let i = 0; i < 6; i++) {
-      const t = await fetchJSON(`/api/models/download/${modelDownloadActiveTaskId}`);
-      if (t.state !== "queued" && t.state !== "running") break;
-      await new Promise((r) => setTimeout(r, 500));
+    const r = await fetch(`/api/models/download/${taskId}/abort`, { method: "POST" });
+    if (!r.ok && r.status !== 404) {
+      const body = await r.json().catch(() => ({}));
+      showModelsError(`取消失败：${body.error || r.status}`);
     }
-    // 3. 删目录
-    if (targetName) {
-      await fetch(`/api/models/${encodeURIComponent(targetName)}`, { method: "DELETE" });
-    }
-    stopModelDownloadPolling();
-    document.getElementById("model-task-card").hidden = true;
-    await loadModels();
   } catch (err) {
     showModelsError(`取消失败：${err.message || err}`);
   }
+  // 立刻刷新列表（"未下完"会消失，目录可能在后台兜底中再清一次）
+  await loadModels();
+  // 1.5s 后再刷一次，确保后台 cleanup 完成后状态准确
+  setTimeout(() => { loadModels().catch(() => {}); }, 1500);
 }
 
 async function loadModels() {
@@ -425,6 +425,8 @@ async function triggerModelDownload(modelId, sourceBtn = null) {
     const customInput = document.getElementById("model-download-id");
     if (customInput) customInput.value = "";
     startModelDownloadPolling(body.task_id);
+    // 刷新已下载/推荐区，让 variant 切到「下载中」并清掉残留的「提交中…」按钮
+    await loadModels();
   } catch (err) {
     showModelsError(`请求失败：${err.message || err}`);
     btn.disabled = false;
@@ -473,19 +475,31 @@ function renderDownloadTask(t) {
   fill.style.width = `${t.percent}%`;
   document.getElementById("model-task-pct").textContent = `${t.percent}%`;
 
-  // 按钮组：running → [暂停 / 取消]; cancelled → [继续 / 丢弃]
+  // 按钮组按 state + cancel_requested 渲染：
+  //   running + cancel_requested  → [停止中…disabled / 取消]
+  //                                  pause 进行中时 cancel 仍可点 → 升级为彻底放弃
+  //   running                     → [暂停 / 取消]
+  //   cancelled                   → [继续下载 / 丢弃]
+  //   done/error                  → 全部 disabled
   const pauseBtn = document.getElementById("model-task-pause");
   const cancelBtn = document.getElementById("model-task-cancel");
   if (t.state === "cancelled") {
     pauseBtn.textContent = "继续下载";
     pauseBtn.dataset.action = "resume";
+    pauseBtn.dataset.modelId = t.model_id;
     pauseBtn.title = "从断点续传";
     pauseBtn.disabled = false;
     cancelBtn.textContent = "丢弃";
     cancelBtn.title = "丢弃此任务并删除已下载文件";
     cancelBtn.disabled = false;
-    // 把当前 task 的 model_id 暂存到按钮上（继续时重新 submit 用）
-    pauseBtn.dataset.modelId = t.model_id;
+  } else if ((t.state === "running" || t.state === "queued") && t.cancel_requested) {
+    // 暂停进行中：pause 按钮变"暂停中…"且 disable，cancel 仍可点（用户可升级为放弃）
+    pauseBtn.textContent = "暂停中…";
+    pauseBtn.disabled = true;
+    pauseBtn.title = "等待 modelscope 在下一个 chunk 边界响应";
+    cancelBtn.textContent = "取消";
+    cancelBtn.title = "取消并清理所有已下载文件";
+    cancelBtn.disabled = false;
   } else if (t.state === "running" || t.state === "queued") {
     pauseBtn.textContent = "暂停";
     pauseBtn.dataset.action = "pause";
@@ -495,7 +509,6 @@ function renderDownloadTask(t) {
     cancelBtn.title = "取消并清理所有已下载文件";
     cancelBtn.disabled = false;
   } else {
-    // done / error
     pauseBtn.disabled = true;
     cancelBtn.disabled = true;
   }
