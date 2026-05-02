@@ -9,6 +9,7 @@ from starlette.requests import Request
 
 from app import model, post_process
 from app.api import exceptions, middleware
+from app.backends.qwen import QwenAsrBackend
 from app.errors import ModelLoadError, PostProcessError, TranscriptionError
 
 
@@ -62,45 +63,47 @@ def test_unexpected_error_handler_returns_generic_json():
 
 
 def test_load_model_wraps_failure(monkeypatch):
-    monkeypatch.setattr(model, "_model", None)
+    """Qwen backend 加载阶段抛错应被 model.load_model 包成 ModelLoadError。"""
+    monkeypatch.setattr(model, "_backend", None)
+    monkeypatch.setattr(QwenAsrBackend, "can_handle", classmethod(lambda cls, p: True))
 
-    def fake_from_pretrained(*args, **kwargs):
+    def fake_load(self):
         raise RuntimeError("boom")
 
-    monkeypatch.setattr(model.Qwen3ASRModel, "from_pretrained", fake_from_pretrained)
+    monkeypatch.setattr(QwenAsrBackend, "load", fake_load)
 
-    with pytest.raises(ModelLoadError, match="模型加载失败"):
+    with pytest.raises(ModelLoadError):
         model.load_model()
 
 
 def test_transcribe_wraps_inference_failure(monkeypatch):
-    class BrokenModel:
-        def transcribe(self, audio_path, language=None):
+    class BrokenBackend:
+        def transcribe(self, audio_path):
             raise RuntimeError("boom")
 
-    monkeypatch.setattr(model, "load_model", lambda: BrokenModel())
+    monkeypatch.setattr(model, "load_model", lambda: BrokenBackend())
 
     with pytest.raises(TranscriptionError, match="模型推理失败"):
         model.transcribe("demo.wav")
 
 
 def test_transcribe_rejects_empty_results(monkeypatch):
-    class EmptyResultModel:
-        def transcribe(self, audio_path, language=None):
-            return []
+    class EmptyBackend:
+        def transcribe(self, audio_path):
+            return ("", 0)
 
-    monkeypatch.setattr(model, "load_model", lambda: EmptyResultModel())
+    monkeypatch.setattr(model, "load_model", lambda: EmptyBackend())
 
     with pytest.raises(TranscriptionError, match="模型推理返回空结果"):
         model.transcribe("demo.wav")
 
 
 def test_transcribe_wraps_post_process_failure(monkeypatch):
-    class SuccessModel:
-        def transcribe(self, audio_path, language=None):
-            return [SimpleNamespace(text="raw text")]
+    class OkBackend:
+        def transcribe(self, audio_path):
+            return ("raw text", 12)
 
-    monkeypatch.setattr(model, "load_model", lambda: SuccessModel())
+    monkeypatch.setattr(model, "load_model", lambda: OkBackend())
     monkeypatch.setattr(post_process, "normalize_numbers", lambda text: (_ for _ in ()).throw(RuntimeError("boom")))
 
     with pytest.raises(PostProcessError, match="后处理失败"):
