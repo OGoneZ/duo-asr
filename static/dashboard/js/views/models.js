@@ -52,10 +52,16 @@ export async function mount() {
     });
   }
 
-  // 暂停 / 取消按钮
+  // 暂停 / 取消按钮 —— 同一个按钮在 cancelled 状态下变成「继续」
   const pauseBtn = document.getElementById("model-task-pause");
   const cancelBtn = document.getElementById("model-task-cancel");
-  if (pauseBtn) pauseBtn.addEventListener("click", () => pauseDownload());
+  if (pauseBtn) pauseBtn.addEventListener("click", () => {
+    if (pauseBtn.dataset.action === "resume") {
+      resumeDownload(pauseBtn.dataset.modelId);
+    } else {
+      pauseDownload();
+    }
+  });
   if (cancelBtn) cancelBtn.addEventListener("click", () => cancelDownload());
 
   await loadModels();
@@ -85,6 +91,12 @@ async function pauseDownload() {
   } catch (err) {
     showModelsError(`暂停失败：${err.message || err}`);
   }
+}
+
+async function resumeDownload(modelId) {
+  if (!modelId) return;
+  // 复用 triggerModelDownload：modelscope 自动 hash 续传
+  await triggerModelDownload(modelId);
 }
 
 async function cancelDownload() {
@@ -427,13 +439,15 @@ function startModelDownloadPolling(taskId) {
     try {
       const data = await fetchJSON(`/api/models/download/${taskId}`);
       renderDownloadTask(data);
-      if (data.state === "done" || data.state === "error" || data.state === "cancelled") {
+      if (data.state === "done" || data.state === "error") {
+        // 真结束：隐藏进度卡 + 刷新列表
         stopModelDownloadPolling();
-        // 任务结束 → 隐藏进度卡 + 刷新列表（让 incomplete 状态正确显示）
-        if (data.state !== "running") {
-          document.getElementById("model-task-card").hidden = true;
-        }
+        document.getElementById("model-task-card").hidden = true;
         loadModels();
+      } else if (data.state === "cancelled") {
+        // 暂停：停止轮询但保留进度卡显示，按钮已切到「继续」
+        stopModelDownloadPolling();
+        loadModels();   // 让推荐区也同步显示「未下完」
       }
     } catch (err) {
       stopModelDownloadPolling();
@@ -458,6 +472,33 @@ function renderDownloadTask(t) {
   const fill = document.getElementById("model-task-bar-fill");
   fill.style.width = `${t.percent}%`;
   document.getElementById("model-task-pct").textContent = `${t.percent}%`;
+
+  // 按钮组：running → [暂停 / 取消]; cancelled → [继续 / 丢弃]
+  const pauseBtn = document.getElementById("model-task-pause");
+  const cancelBtn = document.getElementById("model-task-cancel");
+  if (t.state === "cancelled") {
+    pauseBtn.textContent = "继续下载";
+    pauseBtn.dataset.action = "resume";
+    pauseBtn.title = "从断点续传";
+    pauseBtn.disabled = false;
+    cancelBtn.textContent = "丢弃";
+    cancelBtn.title = "丢弃此任务并删除已下载文件";
+    cancelBtn.disabled = false;
+    // 把当前 task 的 model_id 暂存到按钮上（继续时重新 submit 用）
+    pauseBtn.dataset.modelId = t.model_id;
+  } else if (t.state === "running" || t.state === "queued") {
+    pauseBtn.textContent = "暂停";
+    pauseBtn.dataset.action = "pause";
+    pauseBtn.title = "暂停下载，保留已下载部分；下次点「继续下载」会从断点续传";
+    pauseBtn.disabled = false;
+    cancelBtn.textContent = "取消";
+    cancelBtn.title = "取消并清理所有已下载文件";
+    cancelBtn.disabled = false;
+  } else {
+    // done / error
+    pauseBtn.disabled = true;
+    cancelBtn.disabled = true;
+  }
 
   const fdone = t.files_done;
   const ftot = t.files_total;
