@@ -11,7 +11,7 @@ from fastapi import APIRouter, Body, File, HTTPException, Query, Request, Upload
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 import soundfile as sf
 
-from app import config, db, model, stats
+from app import config, db, model, models_registry, stats
 from app.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -241,3 +241,16 @@ async def put_hotwords(payload: dict = Body(...)):
 
     logger.info("hotwords.toml 已更新（%d 条规则）", len(hotwords))
     return {"ok": True, "count": len(hotwords)}
+
+
+# ---------- 模型管理 ----------
+
+@router.get("/api/models")
+async def get_models():
+    """列出 models/ 下已下载的模型 + 当前激活标记。"""
+    items = [m.to_dict() for m in models_registry.list_models()]
+    return {
+        "active": config.MODEL_NAME,
+        "models_dir": str(config.MODELS_DIR),
+        "items": items,
+    }

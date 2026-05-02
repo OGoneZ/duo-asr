@@ -6,8 +6,9 @@ import torch
 _REPO_ROOT = Path(__file__).parent.parent
 
 # 模型
-MODEL_PATH = _REPO_ROOT / "models" / "Qwen3-ASR-1.7B"
-MODEL_NAME = "Qwen3-ASR-1.7B"  # 写入 db 用，便于追溯哪个模型识别的
+MODELS_DIR = _REPO_ROOT / "models"
+MODEL_NAME = "Qwen3-ASR-1.7B"  # 当前激活模型，3d 阶段做持久化切换
+MODEL_PATH = MODELS_DIR / MODEL_NAME
 
 
 def _auto_device() -> str:

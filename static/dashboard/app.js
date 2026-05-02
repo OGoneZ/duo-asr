@@ -107,7 +107,7 @@ async function fetchJSON(url) {
 }
 
 // ---------- 状态 ----------
-const VIEWS = ["home", "history", "transcribe", "hotwords"];
+const VIEWS = ["home", "history", "transcribe", "hotwords", "models"];
 let currentView = null;       // 初始 null：首次 syncRoute 必触发数据加载
 let currentDays = 30;
 let currentClient = "all";    // "all" 或具体 client_host
@@ -158,6 +158,7 @@ function syncRoute() {
   }
   else if (view === "hotwords") loadHotwords();
   else if (view === "transcribe") resetTranscribe();
+  else if (view === "models") loadModels();
 }
 
 // ---------- 首页 ----------
@@ -1584,4 +1585,54 @@ function renderTranscribeResult({ text, audioUrl, elapsed, filename, size }) {
   // raw 输出当前接口未返回，预留 details 关闭
   document.getElementById("trans-result-raw-wrap").hidden = true;
   result.hidden = false;
+}
+
+// ---------- 模型管理 ----------
+
+async function loadModels() {
+  const el = document.getElementById("models-list");
+  el.innerHTML = `<li class="models-empty">加载中…</li>`;
+  hideModelsError();
+  try {
+    const data = await fetchJSON("/api/models");
+    document.getElementById("models-meta").textContent =
+      `${data.items.length} 个模型 · ${escape(data.models_dir)}`;
+    renderModels(data.items, data.active);
+  } catch (err) {
+    showModelsError(`加载失败：${escape(err.message || err)}`);
+    el.innerHTML = "";
+  }
+}
+
+function renderModels(items, active) {
+  const el = document.getElementById("models-list");
+  if (!items.length) {
+    el.innerHTML = `<li class="models-empty">尚未下载任何模型。下载功能将在后续阶段开放。</li>`;
+    return;
+  }
+  el.innerHTML = items.map((m) => `
+    <li class="model-card${m.is_current ? " is-current" : ""}${m.valid ? "" : " is-invalid"}">
+      <div class="model-card-head">
+        <div class="model-card-title">
+          <span class="model-name">${escape(m.name)}</span>
+          ${m.is_current ? '<span class="model-badge model-badge-current">当前激活</span>' : ""}
+          ${m.valid ? "" : '<span class="model-badge model-badge-warn">缺少 config.json</span>'}
+        </div>
+        <span class="model-size">${escape(m.size_human)}</span>
+      </div>
+      <div class="model-card-path" title="${escape(m.path)}">${escape(m.path)}</div>
+    </li>
+  `).join("");
+}
+
+function showModelsError(msg) {
+  const el = document.getElementById("models-error");
+  el.textContent = msg;
+  el.hidden = false;
+}
+
+function hideModelsError() {
+  const el = document.getElementById("models-error");
+  el.hidden = true;
+  el.textContent = "";
 }

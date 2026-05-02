@@ -75,6 +75,17 @@
         </span>
         <span>热词管理</span>
       </a>
+      <a href="#/models" class="nav-item" data-view="models">
+        <span class="nav-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="6" width="18" height="4" rx="1"/>
+            <rect x="3" y="14" width="18" height="4" rx="1"/>
+            <circle cx="7" cy="8" r="0.6" fill="currentColor"/>
+            <circle cx="7" cy="16" r="0.6" fill="currentColor"/>
+          </svg>
+        </span>
+        <span>模型管理</span>
+      </a>
     </nav>
 
     <div class="sidebar-foot">
@@ -370,6 +381,25 @@
           <button class="trans-reset-btn" id="trans-reset-btn" type="button">再来一段</button>
         </div>
       </div>
+    </section>
+
+    <!-- 模型管理页 -->
+    <section class="view view-models" data-view="models" hidden>
+      <header class="view-header">
+        <div class="view-title">
+          <h1>模型管理<span class="view-eyebrow">Models</span></h1>
+        </div>
+        <span class="muted" id="models-meta"></span>
+      </header>
+
+      <p class="hotwords-hint">
+        模型放在 <code>models/</code> 目录下。当前激活的模型用绿色边框标记，转录请求都使用它。
+        下载、切换与删除会在后续阶段开放。
+      </p>
+
+      <div id="models-error" class="hotwords-error" hidden></div>
+
+      <ul class="models-list" id="models-list"></ul>
     </section>
 
     <!-- 热词管理页 -->
