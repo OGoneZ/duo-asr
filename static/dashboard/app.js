@@ -1643,59 +1643,79 @@ async function loadModels() {
   const el = document.getElementById("models-list");
   el.innerHTML = `<li class="models-empty">加载中…</li>`;
   hideModelsError();
+  let activeDownloads = [];
   try {
-    const data = await fetchJSON("/api/models");
+    const [data, dl] = await Promise.all([
+      fetchJSON("/api/models"),
+      fetchJSON("/api/models/downloads").catch(() => ({ items: [] })),
+    ]);
+    activeDownloads = (dl.items || []).filter((t) => t.state === "queued" || t.state === "running");
+    const downloadingNames = new Set(activeDownloads.map((t) => t.target_name));
     document.getElementById("models-meta").textContent =
       `${data.items.length} 个已下载 · ${escape(data.models_dir)}`;
-    renderModels(data.items, data.active);
-    renderRecommended(data.recommended || []);
+    renderModels(data.items, data.active, downloadingNames);
+    renderRecommended(data.recommended || [], downloadingNames);
   } catch (err) {
     showModelsError(`加载失败：${escape(err.message || err)}`);
     el.innerHTML = "";
+    return;
+  }
+  // 服务进程仍在跑而前端刷新过 → 自动恢复 polling
+  if (activeDownloads.length > 0 && !modelDownloadPoller) {
+    const t = activeDownloads[0];
+    modelDownloadActiveTaskId = t.task_id;
+    startModelDownloadPolling(t.task_id);
   }
 }
 
-function renderModels(items, active) {
+function renderModels(items, active, downloadingNames = new Set()) {
   const el = document.getElementById("models-list");
   if (!items.length) {
     el.innerHTML = `<li class="models-empty">尚未下载任何模型，从下方推荐区选一个开始。</li>`;
     return;
   }
-  el.innerHTML = items.map((m) => `
-    <li class="model-card${m.is_current ? " is-current" : ""}${m.valid ? "" : " is-invalid"}">
+  el.innerHTML = items.map((m) => {
+    const downloading = downloadingNames.has(m.name);
+    const downloadingBadge = downloading
+      ? '<span class="model-badge model-badge-downloading">下载中</span>'
+      : "";
+    const showActions = !downloading;
+    return `
+    <li class="model-card${m.is_current ? " is-current" : ""}${m.valid ? "" : " is-invalid"}${downloading ? " is-downloading" : ""}">
       <div class="model-card-head">
         <div class="model-card-title">
           <span class="model-name">${escape(m.name)}</span>
           ${m.is_current ? '<span class="model-badge model-badge-current">当前激活</span>' : ""}
-          ${m.valid ? "" : '<span class="model-badge model-badge-warn">无 config 文件</span>'}
+          ${downloadingBadge}
+          ${m.valid || downloading ? "" : '<span class="model-badge model-badge-warn">无 config 文件</span>'}
         </div>
         <div class="model-card-right">
           <span class="model-size">${escape(m.size_human)}</span>
           <div class="model-actions">
-            ${m.is_current || !m.valid ? "" : `<button class="model-act-btn model-act-activate" data-action="activate" data-name="${escape(m.name)}">使用此模型</button>`}
-            ${m.is_current ? "" : `<button class="model-act-btn model-act-delete" data-action="delete" data-name="${escape(m.name)}">删除</button>`}
+            ${showActions && !m.is_current && m.valid ? `<button class="model-act-btn model-act-activate" data-action="activate" data-name="${escape(m.name)}">使用此模型</button>` : ""}
+            ${showActions && !m.is_current ? `<button class="model-act-btn model-act-delete" data-action="delete" data-name="${escape(m.name)}">删除</button>` : ""}
           </div>
         </div>
       </div>
       <div class="model-card-path" title="${escape(m.path)}">${escape(m.path)}</div>
     </li>
-  `).join("");
-  // 事件委托：删除/切换按钮
+  `;
+  }).join("");
   el.onclick = handleModelAction;
 }
 
-function renderRecommended(families) {
+function renderRecommended(families, downloadingNames = new Set()) {
   const el = document.getElementById("models-recommended");
   if (!el) return;
   if (!families.length) {
     el.innerHTML = "";
     return;
   }
-  el.innerHTML = families.map((f) => renderFamilyCard(f)).join("");
+  el.innerHTML = families.map((f) => renderFamilyCard(f, downloadingNames)).join("");
   el.onclick = handleModelAction;
 }
 
-function renderFamilyCard(f) {
+function renderFamilyCard(f, downloadingNames = new Set()) {
   const downloadedCount = f.variants.filter((v) => v.downloaded).length;
   const statusBadge = f.any_current
     ? '<span class="model-badge model-badge-current">当前激活</span>'
@@ -1718,22 +1738,30 @@ function renderFamilyCard(f) {
         </summary>
         <div class="family-summary-text">${escape(f.summary)}</div>
         <ul class="variants-list">
-          ${f.variants.map(renderVariantRow).join("")}
+          ${f.variants.map((v) => renderVariantRow(v, downloadingNames)).join("")}
         </ul>
       </details>
     </li>
   `;
 }
 
-function renderVariantRow(v) {
-  const stateBadge = v.is_current
-    ? '<span class="model-badge model-badge-current">当前激活</span>'
-    : (v.downloaded ? '<span class="model-badge model-badge-downloaded">已下载</span>' : "");
-  const action = v.downloaded
-    ? (v.is_current
-        ? ""
-        : `<button class="model-act-btn model-act-activate" data-action="activate" data-name="${escape(v.target_name)}">使用此模型</button>`)
-    : `<button class="model-act-btn model-act-download" data-action="download" data-id="${escape(v.model_id)}">下载</button>`;
+function renderVariantRow(v, downloadingNames = new Set()) {
+  const downloading = downloadingNames.has(v.target_name);
+  const stateBadge = downloading
+    ? '<span class="model-badge model-badge-downloading">下载中</span>'
+    : (v.is_current
+        ? '<span class="model-badge model-badge-current">当前激活</span>'
+        : (v.downloaded ? '<span class="model-badge model-badge-downloaded">已下载</span>' : ""));
+  let action;
+  if (downloading) {
+    action = "";
+  } else if (v.downloaded) {
+    action = v.is_current
+      ? ""
+      : `<button class="model-act-btn model-act-activate" data-action="activate" data-name="${escape(v.target_name)}">使用此模型</button>`;
+  } else {
+    action = `<button class="model-act-btn model-act-download" data-action="download" data-id="${escape(v.model_id)}">下载</button>`;
+  }
 
   const paramsBadge = v.params_b != null
     ? `<span class="model-badge model-badge-params">${formatParams(v.params_b)}</span>`

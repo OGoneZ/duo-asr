@@ -106,7 +106,14 @@ def _make_callback_class(task: DownloadTask) -> Type[ProgressCallback]:
 
 
 def submit(model_id: str, target_name: str | None = None) -> DownloadTask:
-    """提交一个下载任务，立即返回 task 对象（state=queued）。"""
+    """提交一个下载任务，立即返回 task 对象。
+
+    几个边界处理：
+    - 同名任务（target_name 相同）正在 queued/running → 直接复用该任务，
+      不再新建。这能避免用户在前端刷新或重复点击「下载」时累积重复任务。
+    - 目录已存在且非空但没有活跃任务 → 仍允许 submit，让 modelscope
+      snapshot_download 自己处理（它对已下载文件按 hash 校验做断点续传）。
+    """
     if not model_id or "/" not in model_id:
         raise ValueError("model_id 必须形如 'org/name'")
 
@@ -114,10 +121,13 @@ def submit(model_id: str, target_name: str | None = None) -> DownloadTask:
     if "/" in name or "\\" in name or name in ("", ".", ".."):
         raise ValueError(f"非法 target_name: {name!r}")
 
-    target_dir = config.MODELS_DIR / name
-    if target_dir.exists() and any(target_dir.iterdir()):
-        # 已存在且非空：拒绝重新下载，避免覆盖
-        raise FileExistsError(f"目录 {target_dir} 已存在且非空")
+    # 复用活跃任务（同 target_name）
+    with _tasks_lock:
+        for existing in _tasks.values():
+            if existing.target_name == name and existing.state in ("queued", "running"):
+                logger.info("复用已在进行的下载任务: %s (state=%s)",
+                            existing.task_id, existing.state)
+                return existing
 
     task = DownloadTask(
         task_id=uuid.uuid4().hex,

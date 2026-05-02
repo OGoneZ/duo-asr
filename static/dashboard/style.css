@@ -2616,6 +2616,34 @@ audio {
   background: rgba(168, 132, 255, 0.16);
   color: var(--hl);
 }
+.model-badge-downloading {
+  background: rgba(56, 189, 248, 0.18);
+  color: #7dd3fc;
+}
+[data-theme="light"] .model-badge-downloading {
+  background: rgba(56, 189, 248, 0.10);
+  color: #0369a1;
+}
+.model-badge-downloading::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-right: 5px;
+  vertical-align: middle;
+  animation: dl-pulse 1.2s ease-in-out infinite;
+}
+@keyframes dl-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.3); }
+}
+
+.model-card.is-downloading {
+  border-style: dashed;
+  border-color: rgba(56, 189, 248, 0.5);
+}
 
 .model-langs {
   font-size: 11.5px;
