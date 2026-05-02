@@ -4,6 +4,7 @@ from pathlib import Path
 
 from pypinyin import Style, lazy_pinyin
 
+from app import config
 from app.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -11,7 +12,7 @@ logger = setup_logger(__name__)
 # ── 热词 ──────────────────────────────────────────────────────────────────────
 
 _HOTWORD_SECTION = "hotwords"
-_HOTWORDS_FILE = Path(__file__).parent.parent.parent / "hotwords.toml"
+_HOTWORDS_FILE = config.HOTWORDS_FILE
 _hotwords_cache: dict[str, list[str]] = {}
 _hotwords_mtime_ns: int | None = None
 _re_hotwords: re.Pattern[str] | None = None

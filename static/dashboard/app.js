@@ -107,7 +107,7 @@ async function fetchJSON(url) {
 }
 
 // ---------- 状态 ----------
-const VIEWS = ["home", "history"];
+const VIEWS = ["home", "history", "hotwords"];
 let currentView = null;       // 初始 null：首次 syncRoute 必触发数据加载
 let currentDays = 30;
 let currentClient = "all";    // "all" 或具体 client_host
@@ -156,6 +156,7 @@ function syncRoute() {
     loadHistoryClientOptions();
     loadHistory(true);
   }
+  else if (view === "hotwords") loadHotwords();
 }
 
 // ---------- 首页 ----------
@@ -997,6 +998,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 历史页筛选栏（日期、客户端、后处理、重置）
   setupHistoryFilters();
+  setupHotwords();
 
   // 主题切换
   document.getElementById("theme-toggle").addEventListener("click", toggleTheme);
@@ -1023,6 +1025,9 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("hashchange", syncRoute);
   syncRoute();
 
+  // 热词管理：从其他页面切到 hotwords 时，syncRoute 会触发 loadHotwords；
+  // hotwords 页内增删改本身不触发 syncRoute（不变 hash），由 setupHotwords 管理交互
+
   // 30s 轮询首页 summary（仅在 home view，避开历史记录页）
   setInterval(() => {
     if (currentView === "home") {
@@ -1031,3 +1036,254 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }, 30000);
 });
+
+// ---------- 热词管理 ----------
+// 数据模型：行 = { target, variants[], phonetic, pinyin[] }，互转 toml。
+let hotwordsRows = [];
+let hotwordsMode = "table";   // "table" | "raw"
+let hotwordsRawText = "";     // raw 模式下的原文
+
+async function loadHotwords() {
+  const data = await fetchJSON("/api/hotwords");
+  hotwordsRawText = data.text || "";
+  hotwordsRows = parsedToRows(data.parsed);
+  if (data.parsed === null) {
+    // 解析失败：自动切到原文模式让用户修
+    hotwordsMode = "raw";
+    showHotwordsError(`hotwords.toml 当前解析失败：${data.error || "未知错误"}。已切到原文模式，请直接修复。`);
+  } else {
+    hideHotwordsError();
+  }
+  syncHotwordsModeUI();
+  renderHotwordsTable();
+  document.getElementById("hotwords-raw").value = hotwordsRawText;
+}
+
+function parsedToRows(parsed) {
+  if (!parsed || typeof parsed !== "object") return [];
+  return Object.entries(parsed).map(([target, val]) => {
+    if (Array.isArray(val)) {
+      return { target, variants: val.slice(), phonetic: false, pinyin: [] };
+    }
+    if (val && typeof val === "object") {
+      return {
+        target,
+        variants: Array.isArray(val.variants) ? val.variants.slice() : [],
+        phonetic: Boolean(val.phonetic),
+        pinyin: Array.isArray(val.pinyin) ? val.pinyin.slice() : [],
+      };
+    }
+    return { target, variants: [], phonetic: false, pinyin: [] };
+  });
+}
+
+// 行模型 → toml 文本。变体不带 phonetic/pinyin → 简写形式 `target = ["a", "b"]`，
+// 带 phonetic 或 pinyin → 块形式 `[hotwords.target]\nvariants = [...]\nphonetic = true\npinyin = [...]`
+function rowsToToml(rows) {
+  const simple = [];
+  const blocks = [];
+  for (const row of rows) {
+    if (!row.target) continue;
+    const target = row.target;
+    const variants = (row.variants || []).filter((v) => v.length > 0);
+    if (row.phonetic || (row.pinyin && row.pinyin.length > 0)) {
+      const lines = [`[hotwords.${tomlKey(target)}]`];
+      lines.push(`variants = ${tomlStringList(variants)}`);
+      lines.push(`phonetic = ${row.phonetic ? "true" : "false"}`);
+      if (row.pinyin && row.pinyin.length > 0) {
+        lines.push(`pinyin = ${tomlStringList(row.pinyin)}`);
+      }
+      blocks.push(lines.join("\n"));
+    } else {
+      simple.push(`${tomlKey(target)} = ${tomlStringList(variants)}`);
+    }
+  }
+  let out = "[hotwords]\n";
+  if (simple.length) out += simple.join("\n") + "\n";
+  if (blocks.length) out += "\n" + blocks.join("\n\n") + "\n";
+  return out;
+}
+
+// toml key 引号策略：含非 ASCII / 特殊字符则加引号，否则裸键
+function tomlKey(s) {
+  return /^[A-Za-z0-9_-]+$/.test(s) ? s : JSON.stringify(s);
+}
+
+function tomlStringList(items) {
+  return "[" + items.map((s) => JSON.stringify(s)).join(", ") + "]";
+}
+
+function renderHotwordsTable() {
+  const tbody = document.getElementById("hotwords-tbody");
+  if (!tbody) return;
+  if (hotwordsRows.length === 0) {
+    tbody.innerHTML = `<tr class="hw-empty"><td colspan="5">暂无热词，点击右上角「+ 新增」开始。</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = hotwordsRows.map((row, i) => `
+    <tr data-idx="${i}">
+      <td><input class="hw-input hw-target" type="text" value="${escape(row.target)}" placeholder="目标词"></td>
+      <td><input class="hw-input hw-variants" type="text" value="${escape((row.variants || []).join(", "))}" placeholder="变体 1, 变体 2"></td>
+      <td class="hw-cell-center">
+        <label class="hw-switch">
+          <input type="checkbox" class="hw-phonetic"${row.phonetic ? " checked" : ""}>
+          <span class="hw-switch-slider"></span>
+        </label>
+      </td>
+      <td><input class="hw-input hw-pinyin" type="text" value="${escape((row.pinyin || []).join(", "))}" placeholder="zhu, bao, duo"${row.phonetic ? "" : " disabled"}></td>
+      <td class="hw-cell-center">
+        <button class="hw-row-delete" type="button" aria-label="删除" data-action="delete">×</button>
+      </td>
+    </tr>
+  `).join("");
+}
+
+function readRowsFromTable() {
+  const tbody = document.getElementById("hotwords-tbody");
+  if (!tbody) return [];
+  const result = [];
+  tbody.querySelectorAll("tr[data-idx]").forEach((tr) => {
+    const target = tr.querySelector(".hw-target").value.trim();
+    const variantsText = tr.querySelector(".hw-variants").value;
+    const pinyinText = tr.querySelector(".hw-pinyin").value;
+    const phonetic = tr.querySelector(".hw-phonetic").checked;
+    result.push({
+      target,
+      variants: variantsText.split(",").map((s) => s.trim()).filter(Boolean),
+      phonetic,
+      pinyin: pinyinText.split(",").map((s) => s.trim()).filter(Boolean),
+    });
+  });
+  return result;
+}
+
+function syncHotwordsModeUI() {
+  document.querySelectorAll("#hotwords-mode button").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.mode === hotwordsMode);
+  });
+  document.getElementById("hotwords-table-view").hidden = hotwordsMode !== "table";
+  document.getElementById("hotwords-raw-view").hidden = hotwordsMode !== "raw";
+  document.getElementById("hotwords-add-btn").hidden = hotwordsMode !== "table";
+}
+
+function showHotwordsError(msg) {
+  const el = document.getElementById("hotwords-error");
+  el.textContent = msg;
+  el.hidden = false;
+}
+
+function hideHotwordsError() {
+  const el = document.getElementById("hotwords-error");
+  el.hidden = true;
+  el.textContent = "";
+}
+
+function setupHotwords() {
+  // 模式切换
+  document.querySelectorAll("#hotwords-mode button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const next = btn.dataset.mode;
+      if (next === hotwordsMode) return;
+      // 切到 raw 时，把当前表格状态序列化到原文；切回 table 时，把原文解析回行
+      if (hotwordsMode === "table" && next === "raw") {
+        hotwordsRows = readRowsFromTable();
+        hotwordsRawText = rowsToToml(hotwordsRows);
+        document.getElementById("hotwords-raw").value = hotwordsRawText;
+      } else if (hotwordsMode === "raw" && next === "table") {
+        hotwordsRawText = document.getElementById("hotwords-raw").value;
+        // 用后端校验：但本地不解析 toml，简单做：保存时再校验。这里直接保留原文，渲染时尝试 best-effort parse
+        // 用一个简单的 fallback：发到后端 GET 不太合适，干脆什么都不做，让用户保存后重新加载
+        // 更简洁：只用本地解析失败的提示，不重新加载行
+      }
+      hotwordsMode = next;
+      syncHotwordsModeUI();
+    });
+  });
+
+  // 新增一行
+  document.getElementById("hotwords-add-btn").addEventListener("click", () => {
+    if (hotwordsMode !== "table") return;
+    hotwordsRows = readRowsFromTable();
+    hotwordsRows.push({ target: "", variants: [], phonetic: false, pinyin: [] });
+    renderHotwordsTable();
+    // 焦点定位到新行的 target
+    const last = document.querySelector("#hotwords-tbody tr:last-child .hw-target");
+    if (last) last.focus();
+  });
+
+  // 表格事件委托：删除 + 切换 phonetic 时联动启用拼音输入
+  document.getElementById("hotwords-tbody").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-action='delete']");
+    if (!btn) return;
+    const tr = btn.closest("tr[data-idx]");
+    if (!tr) return;
+    hotwordsRows = readRowsFromTable();
+    hotwordsRows.splice(Number(tr.dataset.idx), 1);
+    renderHotwordsTable();
+  });
+
+  document.getElementById("hotwords-tbody").addEventListener("change", (e) => {
+    if (!e.target.classList.contains("hw-phonetic")) return;
+    const tr = e.target.closest("tr[data-idx]");
+    if (!tr) return;
+    const pinyinInput = tr.querySelector(".hw-pinyin");
+    pinyinInput.disabled = !e.target.checked;
+  });
+
+  // 保存
+  document.getElementById("hotwords-save-btn").addEventListener("click", saveHotwords);
+}
+
+async function saveHotwords() {
+  let text;
+  if (hotwordsMode === "table") {
+    hotwordsRows = readRowsFromTable();
+    // 简单的客户端预校验：不允许空 target
+    const empty = hotwordsRows.find((r) => !r.target && (r.variants.length || r.phonetic));
+    if (empty) {
+      showHotwordsError("有规则缺少目标词，请补全或删除该行。");
+      return;
+    }
+    // 允许全空：等于清空热词
+    text = rowsToToml(hotwordsRows.filter((r) => r.target));
+  } else {
+    text = document.getElementById("hotwords-raw").value;
+  }
+
+  const btn = document.getElementById("hotwords-save-btn");
+  btn.disabled = true;
+  btn.textContent = "保存中…";
+  try {
+    const r = await fetch("/api/hotwords", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      showHotwordsError(`保存失败：${body.error || r.status}`);
+      return;
+    }
+    hideHotwordsError();
+    flashSaveSuccess(`已保存（${body.count} 条规则）`);
+    // 重新拉一次以同步 server 端原文（包括我们自己的格式化）
+    await loadHotwords();
+  } catch (err) {
+    showHotwordsError(`保存失败：${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "保存";
+  }
+}
+
+function flashSaveSuccess(msg) {
+  const el = document.getElementById("hotwords-error");
+  el.textContent = msg;
+  el.hidden = false;
+  el.classList.add("ok");
+  setTimeout(() => {
+    el.classList.remove("ok");
+    el.hidden = true;
+    el.textContent = "";
+  }, 2200);
+}

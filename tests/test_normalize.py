@@ -50,15 +50,15 @@ def reloadable_modules(tmp_path):
     core_path = module_dir / "tmp_core.py"
     hot_reload_path = module_dir / "tmp_hot_reload.py"
 
-    # 改写 core: 把 logger 依赖换为 stdlib logging，
+    # 改写 core: 把 app 依赖换掉（独立模块不依赖 app 包），
     # _HOTWORDS_FILE 指向同目录的 hotwords.toml
     core_src = Path(core.__file__).read_text(encoding="utf-8")
     core_src = core_src.replace(
-        "from app.logger import setup_logger",
-        "import logging\nsetup_logger = lambda name=None: logging.getLogger(name)",
+        "from app import config\nfrom app.logger import setup_logger",
+        "import logging\nsetup_logger = lambda name=None: logging.getLogger(name)\nclass _Cfg: pass\nconfig = _Cfg()",
     )
     core_src = core_src.replace(
-        '_HOTWORDS_FILE = Path(__file__).parent.parent.parent / "hotwords.toml"',
+        "_HOTWORDS_FILE = config.HOTWORDS_FILE",
         '_HOTWORDS_FILE = Path(__file__).parent / "hotwords.toml"',
     )
     core_path.write_text(core_src, encoding="utf-8")

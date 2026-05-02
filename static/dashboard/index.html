@@ -53,6 +53,17 @@
         </span>
         <span>历史记录</span>
       </a>
+      <a href="#/hotwords" class="nav-item" data-view="hotwords">
+        <span class="nav-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4h16v4H4z"/>
+            <path d="M4 12h10v4H4z"/>
+            <path d="M4 20h7"/>
+            <path d="m17 14 3 3-3 3"/>
+          </svg>
+        </span>
+        <span>热词管理</span>
+      </a>
     </nav>
 
     <div class="sidebar-foot">
@@ -287,6 +298,51 @@
       <ul class="recent-list" id="recent-list"></ul>
       <div class="load-more">
         <button id="load-more-btn">加载更多</button>
+      </div>
+    </section>
+
+    <!-- 热词管理页 -->
+    <section class="view view-hotwords" data-view="hotwords" hidden>
+      <header class="view-header">
+        <div class="view-title">
+          <h1>热词管理<span class="view-eyebrow">Hotwords</span></h1>
+        </div>
+        <div class="toolbar">
+          <div class="segmented" id="hotwords-mode">
+            <button data-mode="table" class="active">表格</button>
+            <button data-mode="raw">原文</button>
+          </div>
+          <button class="filter-reset" id="hotwords-add-btn" type="button">+ 新增</button>
+          <button class="filter-reset hotwords-save" id="hotwords-save-btn" type="button">保存</button>
+        </div>
+      </header>
+
+      <p class="hotwords-hint" id="hotwords-hint">
+        热词词典会在保存后立即生效（无需重启服务）。每条规则把若干 <em>变体</em> 替换为左侧的 <em>目标词</em>。
+        勾选「按发音匹配」可让 ASR 把同音字也归并到目标词（中文场景）。
+      </p>
+
+      <div id="hotwords-error" class="hotwords-error" hidden></div>
+
+      <!-- 表格视图 -->
+      <div class="hotwords-table-wrap" id="hotwords-table-view">
+        <table class="hotwords-table">
+          <thead>
+            <tr>
+              <th class="hw-col-target">目标词</th>
+              <th class="hw-col-variants">变体（逗号分隔）</th>
+              <th class="hw-col-phonetic">按发音匹配</th>
+              <th class="hw-col-pinyin">拼音键（可选，逗号分隔）</th>
+              <th class="hw-col-action"></th>
+            </tr>
+          </thead>
+          <tbody id="hotwords-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- 原文 toml 视图 -->
+      <div class="hotwords-raw-wrap" id="hotwords-raw-view" hidden>
+        <textarea id="hotwords-raw" spellcheck="false" autocomplete="off"></textarea>
       </div>
     </section>
   </main>

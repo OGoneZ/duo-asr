@@ -40,3 +40,6 @@ RECORDINGS_DIR = _REPO_ROOT / "recordings"
 
 # 静态资源（dashboard 前端）
 STATIC_DIR = _REPO_ROOT / "static"
+
+# 热词词典（运行时可热更新）
+HOTWORDS_FILE = _REPO_ROOT / "hotwords.toml"

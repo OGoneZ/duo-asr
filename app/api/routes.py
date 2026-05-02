@@ -4,9 +4,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 import time
+import tomllib
 import uuid
 
-from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Body, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 import soundfile as sf
 
@@ -175,3 +176,68 @@ async def recording_audio(rec_id: int):
     if not abs_path.is_file():
         raise HTTPException(410, "audio file removed")
     return FileResponse(abs_path, media_type="audio/wav", filename=abs_path.name)
+
+
+# ---------- 热词管理 ----------
+
+@router.get("/api/hotwords")
+async def get_hotwords():
+    """返回 hotwords.toml 原文 + 解析后的结构化数据。"""
+    path = config.HOTWORDS_FILE
+    if not path.is_file():
+        return {"text": "", "parsed": {}, "exists": False}
+    text = path.read_text(encoding="utf-8")
+    try:
+        parsed = tomllib.loads(text).get("hotwords", {})
+    except Exception as exc:
+        return {"text": text, "parsed": None, "error": str(exc), "exists": True}
+    return {"text": text, "parsed": parsed, "exists": True}
+
+
+@router.put("/api/hotwords")
+async def put_hotwords(payload: dict = Body(...)):
+    """覆盖写入 hotwords.toml，校验通过后原子替换并自动备份上一版。
+
+    payload: {"text": "<完整 toml 文本>"}
+    """
+    text = payload.get("text")
+    if not isinstance(text, str):
+        raise HTTPException(400, "缺少 text 字段")
+
+    # 1) 语法校验 + schema 校验
+    try:
+        data = tomllib.loads(text)
+    except Exception as exc:
+        raise HTTPException(400, f"toml 解析失败: {exc}")
+    hotwords = data.get("hotwords")
+    if hotwords is None:
+        raise HTTPException(400, "缺少 [hotwords] section")
+    if not isinstance(hotwords, dict):
+        raise HTTPException(400, "[hotwords] 必须是 table")
+    for key, val in hotwords.items():
+        if isinstance(val, list):
+            if not all(isinstance(v, str) for v in val):
+                raise HTTPException(400, f"hotword {key!r}: 列表元素必须全为字符串")
+        elif isinstance(val, dict):
+            variants = val.get("variants", [])
+            if not isinstance(variants, list) or not all(isinstance(v, str) for v in variants):
+                raise HTTPException(400, f"hotword {key!r}.variants 必须是字符串列表")
+            if "pinyin" in val:
+                if not isinstance(val["pinyin"], list) or not all(isinstance(v, str) for v in val["pinyin"]):
+                    raise HTTPException(400, f"hotword {key!r}.pinyin 必须是字符串列表")
+        else:
+            raise HTTPException(400, f"hotword {key!r}: 必须是列表或 table")
+
+    # 2) 备份上一版
+    path = config.HOTWORDS_FILE
+    if path.exists():
+        bak = path.with_suffix(".toml.bak")
+        bak.write_bytes(path.read_bytes())
+
+    # 3) 原子写入：tmp + replace，避免半写入状态被热重载读到
+    tmp = path.with_suffix(".toml.tmp")
+    tmp.write_text(text, encoding="utf-8")
+    tmp.replace(path)
+
+    logger.info("hotwords.toml 已更新（%d 条规则）", len(hotwords))
+    return {"ok": True, "count": len(hotwords)}
