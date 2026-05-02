@@ -316,10 +316,7 @@ async function loadDaily() {
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       plugins: {
-        legend: {
-          align: "end",
-          labels: { color: fg, usePointStyle: true, pointStyle: "rectRounded", boxWidth: 6, boxHeight: 6 },
-        },
+        legend: { display: false },
         tooltip: {
           backgroundColor: "#0c0c0d",
           borderColor: "#1f1f23",
@@ -522,24 +519,48 @@ function setupHistoryFilters() {
     });
   }
 
-  // 日期范围
+  // 日期范围（自定义 calendar popover）
   const sinceEl = document.getElementById("history-since");
   const untilEl = document.getElementById("history-until");
   const dateClear = document.getElementById("date-clear");
+
+  const fmtDateLabel = (iso) => {
+    if (!iso) return "";
+    const [y, m, d] = iso.split("-");
+    return `${y}-${m}-${d}`;
+  };
+
+  const syncTriggerLabel = (trigger) => {
+    const targetId = trigger.dataset.target;
+    const hidden = document.getElementById(targetId);
+    const labelEl = trigger.querySelector(".date-trigger-label");
+    if (hidden.value) {
+      labelEl.textContent = fmtDateLabel(hidden.value);
+      trigger.classList.add("has-value");
+    } else {
+      labelEl.textContent = labelEl.dataset.placeholder;
+      trigger.classList.remove("has-value");
+    }
+  };
+
   const onDateChange = () => {
     historySince = sinceEl.value || "";
     historyUntil = untilEl.value || "";
     dateClear.hidden = !(historySince || historyUntil);
+    document.querySelectorAll(".date-trigger").forEach(syncTriggerLabel);
     loadHistory(true);
   };
-  sinceEl.addEventListener("change", onDateChange);
-  untilEl.addEventListener("change", onDateChange);
-  dateClear.addEventListener("click", () => {
+
+  setupCalendarPopover({ onChange: onDateChange });
+
+  dateClear.addEventListener("click", (e) => {
+    e.stopPropagation();
     sinceEl.value = "";
     untilEl.value = "";
     historySince = "";
     historyUntil = "";
     dateClear.hidden = true;
+    document.querySelectorAll(".date-trigger").forEach(syncTriggerLabel);
     loadHistory(true);
   });
 
@@ -550,6 +571,7 @@ function setupHistoryFilters() {
     sinceEl.value = "";
     untilEl.value = "";
     dateClear.hidden = true;
+    document.querySelectorAll(".date-trigger").forEach(syncTriggerLabel);
     historyQuery = "";
     historyClient = "all";
     historySince = "";
@@ -568,6 +590,167 @@ function setupHistoryFilters() {
       "all",
     );
     loadHistory(true);
+  });
+}
+
+// ---------- 自定义日历 popover ----------
+const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
+
+function fmtIso(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function parseIso(s) {
+  if (!s) return null;
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function setupCalendarPopover({ onChange }) {
+  let popover = null;
+  let activeTrigger = null;
+  let viewYear = 0;
+  let viewMonth = 0;
+
+  const close = () => {
+    if (!popover) return;
+    popover.remove();
+    popover = null;
+    if (activeTrigger) activeTrigger.classList.remove("is-open");
+    activeTrigger = null;
+    document.removeEventListener("click", onDocClick, true);
+    document.removeEventListener("keydown", onKey);
+  };
+
+  const onDocClick = (e) => {
+    if (popover && !popover.contains(e.target) && !e.target.closest(".date-trigger")) close();
+  };
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+
+  const render = () => {
+    const first = new Date(viewYear, viewMonth, 1);
+    // 周一为一周起点：(getDay()+6)%7
+    const offset = (first.getDay() + 6) % 7;
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const prevDays = new Date(viewYear, viewMonth, 0).getDate();
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const todayIso = fmtIso(today);
+    const hidden = document.getElementById(activeTrigger.dataset.target);
+    const selectedIso = hidden.value;
+
+    const cells = [];
+    // 上月填充
+    for (let i = offset - 1; i >= 0; i--) {
+      const d = prevDays - i;
+      const iso = fmtIso(new Date(viewYear, viewMonth - 1, d));
+      cells.push({ d, iso, otherMonth: true });
+    }
+    // 当月
+    for (let d = 1; d <= daysInMonth; d++) {
+      const iso = fmtIso(new Date(viewYear, viewMonth, d));
+      cells.push({ d, iso, otherMonth: false });
+    }
+    // 下月填充到 42 格
+    let nd = 1;
+    while (cells.length < 42) {
+      const iso = fmtIso(new Date(viewYear, viewMonth + 1, nd));
+      cells.push({ d: nd++, iso, otherMonth: true });
+    }
+
+    popover.innerHTML = `
+      <div class="cal-head">
+        <button class="cal-nav cal-prev" type="button" aria-label="上一月">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="cal-title">${viewYear} 年 ${viewMonth + 1} 月</span>
+        <button class="cal-nav cal-next" type="button" aria-label="下一月">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+      <div class="cal-weekdays">
+        ${WEEKDAYS.map((w) => `<span class="cal-weekday">${w}</span>`).join("")}
+      </div>
+      <div class="cal-grid">
+        ${cells.map((c) => {
+          const cls = ["cal-day"];
+          if (c.otherMonth) cls.push("is-other-month");
+          if (c.iso === todayIso) cls.push("is-today");
+          if (c.iso === selectedIso) cls.push("is-selected");
+          return `<button type="button" class="${cls.join(" ")}" data-iso="${c.iso}">${c.d}</button>`;
+        }).join("")}
+      </div>
+      <div class="cal-foot">
+        <button class="cal-action cal-today-btn" type="button" data-action="today">今天</button>
+        <button class="cal-action" type="button" data-action="clear">清空</button>
+      </div>
+    `;
+
+    popover.querySelector(".cal-prev").addEventListener("click", (e) => {
+      e.stopPropagation();
+      viewMonth--;
+      if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+      render();
+    });
+    popover.querySelector(".cal-next").addEventListener("click", (e) => {
+      e.stopPropagation();
+      viewMonth++;
+      if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+      render();
+    });
+
+    popover.querySelectorAll(".cal-day").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        hidden.value = btn.dataset.iso;
+        onChange();
+        close();
+      });
+    });
+
+    popover.querySelectorAll(".cal-action").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (btn.dataset.action === "today") hidden.value = todayIso;
+        else hidden.value = "";
+        onChange();
+        close();
+      });
+    });
+  };
+
+  const open = (trigger) => {
+    if (activeTrigger === trigger) { close(); return; }
+    close();
+    activeTrigger = trigger;
+    trigger.classList.add("is-open");
+
+    const hidden = document.getElementById(trigger.dataset.target);
+    const initial = parseIso(hidden.value) || new Date();
+    viewYear = initial.getFullYear();
+    viewMonth = initial.getMonth();
+
+    popover = document.createElement("div");
+    popover.className = "calendar-popover";
+    // 锚到 .date-range 容器，确保两个日期 trigger 的 popover 位置一致
+    const anchor = trigger.closest(".date-range");
+    anchor.appendChild(popover);
+    // 让 popover 对齐当前 trigger
+    const triggerRect = trigger.getBoundingClientRect();
+    const anchorRect = anchor.getBoundingClientRect();
+    popover.style.left = `${triggerRect.left - anchorRect.left}px`;
+
+    render();
+    setTimeout(() => {
+      document.addEventListener("click", onDocClick, true);
+      document.addEventListener("keydown", onKey);
+    }, 0);
+  };
+
+  document.querySelectorAll(".date-trigger").forEach((trigger) => {
+    trigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      open(trigger);
+    });
   });
 }
 

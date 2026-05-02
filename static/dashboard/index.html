@@ -3,21 +3,62 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DuoASR 数据面板</title>
+  <title>DuoASR · 数据面板</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- 极光背景 + 双层纹理（细颗粒噪点 + 粗纤维纸纹） -->
+  <div class="aurora" aria-hidden="true">
+    <span class="aurora-blob aurora-blob-1"></span>
+    <span class="aurora-blob aurora-blob-2"></span>
+    <span class="aurora-blob aurora-blob-3"></span>
+  </div>
+  <div class="noise" aria-hidden="true"></div>
+  <div class="paper-grain" aria-hidden="true"></div>
+
   <aside class="sidebar">
-    <div class="brand">DuoASR 数据面板</div>
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v18"/>
+          <path d="M8 7v10"/>
+          <path d="M16 7v10"/>
+          <path d="M4 11v2"/>
+          <path d="M20 11v2"/>
+        </svg>
+      </span>
+      <span class="brand-text">
+        <span class="brand-title">DuoASR</span>
+        <span class="brand-sub">数据面板</span>
+      </span>
+    </div>
+
     <nav>
       <a href="#/" class="nav-item" data-view="home">
-        <span class="nav-icon">▮</span> 首页
+        <span class="nav-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12l9-9 9 9"/>
+            <path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/>
+          </svg>
+        </span>
+        <span>首页</span>
       </a>
       <a href="#/history" class="nav-item" data-view="history">
-        <span class="nav-icon">▤</span> 历史记录
+        <span class="nav-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M12 7v5l3 2"/>
+            <path d="M3 12a9 9 0 0 1 4.5-7.79"/>
+          </svg>
+        </span>
+        <span>历史记录</span>
       </a>
     </nav>
-    <div class="sidebar-foot" id="last-update"></div>
+
+    <div class="sidebar-foot">
+      <span class="pulse-dot" aria-hidden="true"></span>
+      <span id="last-update">实时同步中</span>
+    </div>
   </aside>
 
   <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换主题">
@@ -34,10 +75,14 @@
     <!-- 首页 -->
     <section class="view view-home" data-view="home">
       <header class="view-header">
-        <h1>概览</h1>
+        <div class="view-title">
+          <span class="view-eyebrow">Overview</span>
+          <h1>概览</h1>
+        </div>
         <div class="toolbar">
           <div class="dropdown" id="client-dropdown">
             <button class="dropdown-toggle" id="client-toggle">
+              <span class="dot dot-violet" aria-hidden="true"></span>
               <span id="client-toggle-label">全部</span>
               <span class="dropdown-caret">▾</span>
             </button>
@@ -52,47 +97,105 @@
       </header>
 
       <div class="cards">
-        <div class="card">
+        <!-- Hero × 2 -->
+        <div class="card card-hero" data-tone="violet">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <path d="M12 19v3"/>
+            </svg>
+          </div>
           <div class="card-label">累计转录语音</div>
           <div class="card-value">
             <span id="stat-duration">—</span><span class="card-unit" id="stat-duration-unit"></span>
           </div>
+          <span class="card-glow" aria-hidden="true"></span>
         </div>
-        <div class="card">
+        <div class="card card-hero" data-tone="amber">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2"/>
+              <path d="M9 20h6"/>
+              <path d="M12 4v16"/>
+            </svg>
+          </div>
           <div class="card-label">累计转录文字</div>
           <div class="card-value">
             <span id="stat-chars">—</span><span class="card-unit">字</span>
           </div>
+          <span class="card-glow" aria-hidden="true"></span>
         </div>
-        <div class="card">
+
+        <!-- Small × 4 -->
+        <div class="card" data-tone="pink">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="6" width="20" height="12" rx="2"/>
+              <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>
+            </svg>
+          </div>
           <div class="card-label">节省键盘敲击</div>
           <div class="card-value">
             <span id="stat-keystrokes">—</span><span class="card-unit">次</span>
           </div>
+          <span class="card-glow" aria-hidden="true"></span>
         </div>
-        <div class="card">
+        <div class="card" data-tone="emerald">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/>
+            </svg>
+          </div>
           <div class="card-label">平均语速</div>
           <div class="card-value">
             <span id="stat-cpm">—</span><span class="card-unit">字/分</span>
           </div>
+          <span class="card-glow" aria-hidden="true"></span>
         </div>
-        <div class="card">
+        <div class="card" data-tone="sky">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M12 7v5l3 2"/>
+            </svg>
+          </div>
           <div class="card-label">平均语音时长</div>
           <div class="card-value">
             <span id="stat-avg-dur">—</span><span class="card-unit">s</span>
           </div>
+          <span class="card-glow" aria-hidden="true"></span>
         </div>
-        <div class="card">
+        <div class="card" data-tone="lilac">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2v4"/>
+              <path d="M12 18v4"/>
+              <path d="m4.93 4.93 2.83 2.83"/>
+              <path d="m16.24 16.24 2.83 2.83"/>
+              <path d="M2 12h4"/>
+              <path d="M18 12h4"/>
+              <path d="m4.93 19.07 2.83-2.83"/>
+              <path d="m16.24 7.76 2.83-2.83"/>
+            </svg>
+          </div>
           <div class="card-label">平均推理耗时</div>
           <div class="card-value">
             <span id="stat-inference">—</span><span class="card-unit">s</span>
           </div>
+          <span class="card-glow" aria-hidden="true"></span>
         </div>
       </div>
 
       <div class="chart-section">
-        <h2>每日趋势</h2>
-        <span class="muted" id="chart-subtitle">字数与说话时长</span>
+        <div class="chart-head">
+          <h2>每日趋势</h2>
+          <div class="chart-legend">
+            <span class="legend-item"><i class="legend-swatch swatch-violet"></i>字数</span>
+            <span class="legend-item"><i class="legend-swatch swatch-emerald"></i>时长</span>
+          </div>
+        </div>
+        <span class="muted" id="chart-subtitle" hidden></span>
         <div class="chart-wrap"><canvas id="daily-chart"></canvas></div>
       </div>
     </section>
@@ -100,7 +203,10 @@
     <!-- 历史记录页 -->
     <section class="view view-history" data-view="history" hidden>
       <header class="view-header">
-        <h1>历史记录</h1>
+        <div class="view-title">
+          <span class="view-eyebrow">History</span>
+          <h1>历史记录</h1>
+        </div>
         <span class="muted" id="history-count"></span>
       </header>
       <div class="search-panel">
@@ -116,11 +222,25 @@
         <div class="filter-row">
           <div class="filter-group">
             <span class="filter-label">时间</span>
-            <div class="date-range">
-              <input type="date" id="history-since" class="date-input" aria-label="起始日期">
+            <div class="date-range" id="date-range">
+              <button class="date-trigger" type="button" data-target="history-since" aria-label="起始日期">
+                <svg class="date-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/>
+                  <path d="M16 2v4M8 2v4M3 10h18"/>
+                </svg>
+                <span class="date-trigger-label" data-placeholder="起始">起始</span>
+              </button>
               <span class="date-sep">→</span>
-              <input type="date" id="history-until" class="date-input" aria-label="结束日期">
+              <button class="date-trigger" type="button" data-target="history-until" aria-label="结束日期">
+                <svg class="date-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/>
+                  <path d="M16 2v4M8 2v4M3 10h18"/>
+                </svg>
+                <span class="date-trigger-label" data-placeholder="结束">结束</span>
+              </button>
               <button class="filter-clear-btn" id="date-clear" type="button" hidden aria-label="清空日期">×</button>
+              <input type="hidden" id="history-since">
+              <input type="hidden" id="history-until">
             </div>
           </div>
 
