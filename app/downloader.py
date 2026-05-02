@@ -33,10 +33,31 @@ class DownloadTask:
     error: str | None = None
     started_at: float | None = None
     ended_at: float | None = None
-    files: dict[str, dict] = field(default_factory=dict)   # filename → {size, downloaded}
-    overall_bytes: int = 0           # 已下载字节累加
-    overall_total: int = 0           # 估计总字节（callback 注册时累加）
+    files: dict[str, dict] = field(default_factory=dict)
+    overall_bytes: int = 0
+    overall_total: int = 0
+    # 速度采样：每 0.5s+ 用瞬时差分 + EMA 平滑
+    speed_bps: float = 0.0           # 平滑后的字节/秒
+    _sample_time: float = 0.0        # 上次采样时间
+    _sample_bytes: int = 0           # 上次采样的 overall_bytes
     lock: threading.Lock = field(default_factory=threading.Lock)
+
+    def _maybe_sample_speed(self) -> None:
+        """ProgressCallback.update 调用后立即调用，更新瞬时速度（持有 lock）。"""
+        now = time.time()
+        if self._sample_time == 0.0:
+            self._sample_time = self.started_at or now
+            self._sample_bytes = self.overall_bytes
+            return
+        elapsed = now - self._sample_time
+        if elapsed < 0.5:
+            return
+        delta = self.overall_bytes - self._sample_bytes
+        instant = max(0.0, delta / elapsed)
+        # EMA：α=0.3 平滑瞬时跳变，新样本占 30%
+        self.speed_bps = instant if self.speed_bps == 0 else 0.3 * instant + 0.7 * self.speed_bps
+        self._sample_time = now
+        self._sample_bytes = self.overall_bytes
 
     def to_dict(self) -> dict:
         with self.lock:
@@ -49,6 +70,11 @@ class DownloadTask:
                 }
                 for fn, meta in self.files.items()
             ]
+            remaining = self.overall_total - self.overall_bytes
+            eta = (
+                int(remaining / self.speed_bps)
+                if self.speed_bps > 0 and remaining > 0 else None
+            )
             return {
                 "task_id": self.task_id,
                 "model_id": self.model_id,
@@ -66,6 +92,8 @@ class DownloadTask:
                     round(100 * self.overall_bytes / self.overall_total, 1)
                     if self.overall_total > 0 else 0
                 ),
+                "speed_bps": int(self.speed_bps),
+                "eta_seconds": eta,
             }
 
 
@@ -92,15 +120,16 @@ def _make_callback_class(task: DownloadTask) -> Type[ProgressCallback]:
                 if meta is not None:
                     meta["downloaded"] += size
                     task.overall_bytes += size
+                    task._maybe_sample_speed()
 
         def end(self):
             with task.lock:
                 meta = task.files.get(self._filename)
                 if meta is not None and meta["downloaded"] < meta["size"]:
-                    # 校正：modelscope 偶尔不严格累加到 file_size，强制对齐避免 100% 卡住
                     delta = meta["size"] - meta["downloaded"]
                     meta["downloaded"] = meta["size"]
                     task.overall_bytes += delta
+                    task._maybe_sample_speed()
 
     return _TaskCb
 

@@ -2007,9 +2007,29 @@ function renderDownloadTask(t) {
     while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
     return `${v.toFixed(1)} ${u[i]}`;
   };
-  let meta = `${fdone}/${ftot} 文件 · ${human(t.bytes_done)} / ${human(t.bytes_total)}`;
-  if (t.error) meta += ` · 错误：${t.error}`;
-  document.getElementById("model-task-meta").textContent = meta;
+  const parts = [
+    `${fdone}/${ftot} 文件`,
+    `${human(t.bytes_done)} / ${human(t.bytes_total)}`,
+  ];
+  if (t.state === "running" && t.speed_bps > 0) {
+    parts.push(`${human(t.speed_bps)}/s`);
+    if (t.eta_seconds != null) parts.push(`剩 ${formatEta(t.eta_seconds)}`);
+  }
+  if (t.error) parts.push(`错误：${t.error}`);
+  document.getElementById("model-task-meta").textContent = parts.join(" · ");
+}
+
+function formatEta(seconds) {
+  if (seconds < 0) return "—";
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  }
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
 function stateLabel(s) {

@@ -1917,6 +1917,15 @@ audio {
   font-style: italic;
 }
 
+/* 模式切换条：紧贴表格上方，右对齐；segmented + 保存按钮一行 */
+.hotwords-mode-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
 /* 表底「+ 新增热词」按钮 */
 .hotwords-add-row {
   display: block;

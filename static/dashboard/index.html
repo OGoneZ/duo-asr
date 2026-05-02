@@ -443,13 +443,6 @@
         <div class="view-title">
           <h1>热词管理<span class="view-eyebrow">Hotwords</span></h1>
         </div>
-        <div class="toolbar">
-          <div class="segmented" id="hotwords-mode">
-            <button data-mode="table" class="active">表格</button>
-            <button data-mode="raw">原文</button>
-          </div>
-          <button class="filter-reset hotwords-save" id="hotwords-save-btn" type="button">保存</button>
-        </div>
       </header>
 
       <p class="hotwords-hint" id="hotwords-hint">
@@ -458,6 +451,15 @@
       </p>
 
       <div id="hotwords-error" class="hotwords-error" hidden></div>
+
+      <!-- 模式切换 + 保存：紧贴表格右上角 -->
+      <div class="hotwords-mode-bar">
+        <div class="segmented" id="hotwords-mode">
+          <button data-mode="table" class="active">表格</button>
+          <button data-mode="raw">原文</button>
+        </div>
+        <button class="filter-reset hotwords-save" id="hotwords-save-btn" type="button">保存</button>
+      </div>
 
       <!-- 表格视图 -->
       <div class="hotwords-table-wrap" id="hotwords-table-view">
