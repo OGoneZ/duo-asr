@@ -394,10 +394,40 @@
 
       <p class="hotwords-hint">
         模型放在 <code>models/</code> 目录下。当前激活的模型用绿色边框标记，转录请求都使用它。
-        下载、切换与删除会在后续阶段开放。
+        切换 / 删除将在后续阶段开放。
       </p>
 
+      <div class="model-download-panel">
+        <div class="model-download-row">
+          <div class="model-download-input-wrap">
+            <label class="filter-label" for="model-download-id">从 ModelScope 下载</label>
+            <input type="text" id="model-download-id"
+                   placeholder="例如 iic/SenseVoiceSmall 或 Qwen/Qwen3-ASR-1.7B"
+                   autocomplete="off" spellcheck="false">
+          </div>
+          <button class="filter-reset model-download-btn" id="model-download-btn" type="button">下载</button>
+        </div>
+        <div class="model-download-presets">
+          <span class="model-download-presets-label">快捷选择：</span>
+          <button class="preset-chip" data-id="iic/SenseVoiceSmall">iic/SenseVoiceSmall</button>
+          <button class="preset-chip" data-id="iic/Whisper-large-v3-turbo">iic/Whisper-large-v3-turbo</button>
+          <button class="preset-chip" data-id="Qwen/Qwen3-ASR-1.7B">Qwen/Qwen3-ASR-1.7B</button>
+        </div>
+      </div>
+
       <div id="models-error" class="hotwords-error" hidden></div>
+
+      <div class="model-task-card" id="model-task-card" hidden>
+        <div class="model-task-head">
+          <span class="model-task-id" id="model-task-name"></span>
+          <span class="model-task-state" id="model-task-state"></span>
+        </div>
+        <div class="model-task-progress">
+          <div class="model-task-bar"><span id="model-task-bar-fill"></span></div>
+          <span class="model-task-pct" id="model-task-pct">0%</span>
+        </div>
+        <div class="model-task-meta" id="model-task-meta"></div>
+      </div>
 
       <ul class="models-list" id="models-list"></ul>
     </section>

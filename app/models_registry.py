@@ -34,8 +34,11 @@ class ModelInfo:
 def list_models() -> list[ModelInfo]:
     """扫 models/ 下所有一级子目录（含 symlink 目录），返回元信息列表。
 
-    判定"有效模型"的最低标准：目录下存在 config.json。
-    其他文件（safetensors 等）这里不强求，留给加载器自己报错。
+    判定"有效模型"的最低标准：目录下存在以下任一配置文件：
+      - config.json     （HuggingFace 习惯）
+      - configuration.json（ModelScope 习惯）
+      - config.yaml     （funasr / SenseVoice 习惯）
+    其他文件（safetensors / pt 等）这里不强求，留给加载器自己报错。
     """
     base = config.MODELS_DIR
     if not base.is_dir():
@@ -46,7 +49,13 @@ def list_models() -> list[ModelInfo]:
     for entry in sorted(base.iterdir(), key=lambda p: p.name.lower()):
         if not entry.is_dir():
             continue
-        valid = (entry / "config.json").is_file()
+        # ModelScope 在下载完成前可能留 ._____temp 子目录，跳过这种过渡态名
+        if entry.name.startswith("."):
+            continue
+        valid = any(
+            (entry / fname).is_file()
+            for fname in ("config.json", "configuration.json", "config.yaml")
+        )
         out.append(ModelInfo(
             name=entry.name,
             path=str(entry.resolve()),

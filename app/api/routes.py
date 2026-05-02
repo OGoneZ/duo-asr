@@ -11,7 +11,7 @@ from fastapi import APIRouter, Body, File, HTTPException, Query, Request, Upload
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 import soundfile as sf
 
-from app import config, db, model, models_registry, stats
+from app import config, db, downloader, model, models_registry, stats
 from app.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -254,3 +254,37 @@ async def get_models():
         "models_dir": str(config.MODELS_DIR),
         "items": items,
     }
+
+
+@router.post("/api/models/download")
+async def post_model_download(payload: dict = Body(...)):
+    """提交下载任务。立即返回 task_id；任务异步在后台运行。
+
+    payload: {"model_id": "iic/SenseVoiceSmall", "target_name": "<可选>"}
+    """
+    model_id = (payload.get("model_id") or "").strip()
+    target_name = payload.get("target_name")
+    if not model_id:
+        raise HTTPException(400, "缺少 model_id")
+    try:
+        task = downloader.submit(model_id, target_name)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except FileExistsError as exc:
+        raise HTTPException(409, str(exc))
+    return {"task_id": task.task_id}
+
+
+@router.get("/api/models/download/{task_id}")
+async def get_model_download(task_id: str):
+    """查询下载任务状态。前端 polling 用。"""
+    task = downloader.get(task_id)
+    if not task:
+        raise HTTPException(404, "任务不存在")
+    return task.to_dict()
+
+
+@router.get("/api/models/downloads")
+async def get_model_downloads():
+    """最近的下载任务列表（含进行中和已完成）。"""
+    return {"items": [t.to_dict() for t in downloader.list_recent()]}

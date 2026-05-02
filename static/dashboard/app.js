@@ -1002,6 +1002,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupHistoryFilters();
   setupHotwords();
   setupTranscribe();
+  setupModelsPage();
 
   // 主题切换
   document.getElementById("theme-toggle").addEventListener("click", toggleTheme);
@@ -1636,3 +1637,115 @@ function hideModelsError() {
   el.hidden = true;
   el.textContent = "";
 }
+
+// ---------- 模型下载 ----------
+let modelDownloadPoller = null;
+let modelDownloadActiveTaskId = null;
+
+function setupModelsPage() {
+  const btn = document.getElementById("model-download-btn");
+  const input = document.getElementById("model-download-id");
+  if (!btn || !input) return;
+
+  btn.addEventListener("click", () => triggerModelDownload(input.value.trim()));
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") triggerModelDownload(input.value.trim());
+  });
+  document.querySelectorAll(".preset-chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      input.value = chip.dataset.id;
+      input.focus();
+    });
+  });
+}
+
+async function triggerModelDownload(modelId) {
+  if (!modelId) {
+    showModelsError("请填写 model_id（如 iic/SenseVoiceSmall）");
+    return;
+  }
+  if (!modelId.includes("/")) {
+    showModelsError("model_id 必须形如 org/name");
+    return;
+  }
+  hideModelsError();
+  const btn = document.getElementById("model-download-btn");
+  btn.disabled = true;
+  btn.textContent = "提交中…";
+  try {
+    const r = await fetch("/api/models/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model_id: modelId }),
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      showModelsError(`下载失败：${body.error || r.status}`);
+      return;
+    }
+    modelDownloadActiveTaskId = body.task_id;
+    document.getElementById("model-download-id").value = "";
+    startModelDownloadPolling(body.task_id);
+  } catch (err) {
+    showModelsError(`请求失败：${err.message || err}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "下载";
+  }
+}
+
+function startModelDownloadPolling(taskId) {
+  stopModelDownloadPolling();
+  document.getElementById("model-task-card").hidden = false;
+  modelDownloadPoller = setInterval(async () => {
+    try {
+      const data = await fetchJSON(`/api/models/download/${taskId}`);
+      renderDownloadTask(data);
+      if (data.state === "done" || data.state === "error") {
+        stopModelDownloadPolling();
+        // 完成后刷新模型列表
+        loadModels();
+      }
+    } catch (err) {
+      stopModelDownloadPolling();
+      showModelsError(`查询任务失败：${err.message || err}`);
+    }
+  }, 1000);
+}
+
+function stopModelDownloadPolling() {
+  if (modelDownloadPoller) {
+    clearInterval(modelDownloadPoller);
+    modelDownloadPoller = null;
+  }
+}
+
+function renderDownloadTask(t) {
+  document.getElementById("model-task-name").textContent =
+    `${t.model_id} → models/${t.target_name}`;
+  const stateEl = document.getElementById("model-task-state");
+  stateEl.textContent = stateLabel(t.state);
+  stateEl.className = `model-task-state state-${t.state}`;
+  const fill = document.getElementById("model-task-bar-fill");
+  fill.style.width = `${t.percent}%`;
+  document.getElementById("model-task-pct").textContent = `${t.percent}%`;
+
+  const fdone = t.files_done;
+  const ftot = t.files_total;
+  const human = (n) => {
+    if (n < 1024) return `${n} B`;
+    const u = ["KB","MB","GB","TB"];
+    let v = n / 1024, i = 0;
+    while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+    return `${v.toFixed(1)} ${u[i]}`;
+  };
+  let meta = `${fdone}/${ftot} 文件 · ${human(t.bytes_done)} / ${human(t.bytes_total)}`;
+  if (t.error) meta += ` · 错误：${t.error}`;
+  document.getElementById("model-task-meta").textContent = meta;
+}
+
+function stateLabel(s) {
+  return ({ queued: "排队中", running: "下载中", done: "已完成", error: "失败" })[s] || s;
+}
+
+// 把模型管理页的下载控件挂上事件 — 在 setupHotwords 旁边调用
