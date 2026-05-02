@@ -3,10 +3,9 @@ from typing import NamedTuple
 
 from qwen_asr import Qwen3ASRModel
 
-import config
-import hot_reload
-from errors import ModelLoadError, PostProcessError, TranscriptionError
-from logger import setup_logger
+from app import config, post_process
+from app.errors import ModelLoadError, PostProcessError, TranscriptionError
+from app.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -55,7 +54,7 @@ def transcribe(audio_path: str) -> TranscribeResult:
 
     raw = results[0].text
     try:
-        normalized = hot_reload.normalize_numbers(raw)
+        normalized = post_process.normalize_numbers(raw)
     except Exception as exc:
         logger.exception("后处理失败: audio_path=%s, raw=%r", audio_path, raw)
         raise PostProcessError(f"后处理失败: {audio_path}") from exc

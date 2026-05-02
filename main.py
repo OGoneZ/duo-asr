@@ -1,7 +1,7 @@
 import uvicorn
 
-import config
-from api import app
+from app import config
+from app.api import app
 
 
 def main() -> None:

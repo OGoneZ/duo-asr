@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-import config
+from app import config
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS transcriptions (

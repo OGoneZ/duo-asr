@@ -6,6 +6,8 @@
 
 - **语音识别**：使用 Qwen3-ASR-1.7B 模型，支持中英文混合识别
 - **中文数字后处理**：自动将识别结果中的中文数字转换为阿拉伯数字
+- **热词修正**：支持精确匹配 + 拼音匹配两种模式，词典 `hotwords.toml` 支持热更新
+- **使用面板**：内置 Dashboard（`/dashboard/`），统计字数 / 击键 / 时长，支持搜索与筛选
 - **IP 白名单**：仅允许 `127.0.0.1`、`::1` 及 `10.0.0.0/24` 网段访问
 - **日志归档**：按月分目录、按天分文件，路径格式为 `logs/YYYY-MM/YYYY-MM-DD.log`
 
@@ -30,16 +32,32 @@
 
 ```
 asr-server/
-├── api.py              # FastAPI 路由与中间件
-├── service.py          # 模型加载、转写与后处理逻辑
-├── logger.py           # 按日滚动日志
-├── qwen_asr_api.py     # 入口：启动 uvicorn
-├── models/
-│   └── Qwen3-ASR-1.7B/ # 模型权重（需手动下载）
-├── logs/               # 运行日志（自动创建）
-├── tests/
-│   └── test_normalize.py
-└── pyproject.toml
+├── main.py                  # 入口：启动 uvicorn
+├── hotwords.toml            # 热词词典（运行时热更新）
+├── pyproject.toml
+├── app/                     # 业务包
+│   ├── __init__.py          # 导出 FastAPI app
+│   ├── config.py            # 全局常量
+│   ├── logger.py            # 按日滚动日志
+│   ├── errors.py            # 业务异常基类
+│   ├── db.py                # SQLite 持久化
+│   ├── stats.py             # 击键数估算
+│   ├── model.py             # Qwen3-ASR 加载与推理
+│   ├── api/                 # HTTP 边界
+│   │   ├── __init__.py      # FastAPI 装配（lifespan + 中间件 + 路由）
+│   │   ├── routes.py        # /v1/audio + /api/stats/* + /health
+│   │   ├── middleware.py    # IP 白名单 + peer 解析
+│   │   └── exceptions.py    # 4 类异常处理器
+│   └── post_process/        # 后处理子系统（强耦合聚合）
+│       ├── __init__.py      # 对外暴露 normalize_numbers
+│       ├── core.py          # 数字 / 热词 / 字母序列规则
+│       └── hot_reload.py    # 按 mtime 重载 core
+├── static/dashboard/        # 前端资源
+├── tests/                   # pytest
+├── models/                  # 模型权重（gitignore）
+├── data/                    # SQLite db（gitignore）
+├── recordings/              # 转录原始音频（gitignore）
+└── logs/                    # 运行日志（gitignore）
 ```
 
 ## 安装
@@ -56,14 +74,7 @@ uv sync
 uv run main.py
 ```
 
-服务默认监听 `0.0.0.0:9999`，纯 HTTP。
-
-可选环境变量：
-
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `ASR_HOST` | `0.0.0.0` | 监听地址 |
-| `ASR_PORT` | `9999` | 监听端口 |
+服务默认监听 `0.0.0.0:9999`，纯 HTTP。前端面板访问 `http://localhost:9999/dashboard/`。
 
 ## API
 
@@ -71,27 +82,13 @@ uv run main.py
 
 上传音频文件，返回转写文本。兼容 OpenAI Whisper API 格式。
 
-**请求**
-
-```
-Content-Type: multipart/form-data
-```
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| file | file | 音频文件（推荐 WAV 格式）|
-
-**响应**
-
-```json
-{ "text": "识别结果" }
-```
-
-**示例**
-
 ```bash
 curl -X POST http://localhost:9999/v1/audio/transcriptions \
   -F "file=@audio.wav"
+```
+
+```json
+{ "text": "识别结果" }
 ```
 
 ### GET /health
@@ -106,13 +103,23 @@ curl http://localhost:9999/health
 {"status": "ok"}
 ```
 
+### Dashboard 统计 API
+
+| 路径 | 说明 |
+|------|------|
+| `GET /api/stats/summary` | 累计统计（支持 client / days 过滤） |
+| `GET /api/stats/daily` | 每日聚合 |
+| `GET /api/stats/clients` | 已知客户端列表 |
+| `GET /api/stats/by-client` | 按客户端分桶 |
+| `GET /api/stats/recent` | 最近转录（支持 q / since / until / post_processed） |
+| `GET /api/recordings/{id}` | 单条详情 |
+| `GET /api/recordings/{id}/audio` | 原始音频 |
+
 ## 运行测试
 
 ```bash
 uv run pytest tests/
 ```
-
-共 45 个参数化测试用例，覆盖整数、小数、时间、年份、IP、at 符号、域名后缀及裸单位字防误触发等场景。
 
 ## 依赖
 
@@ -123,3 +130,4 @@ uv run pytest tests/
 | PyTorch | 模型推理 |
 | qwen-asr | Qwen3-ASR 模型封装 |
 | librosa / soundfile | 音频读取 |
+| pypinyin | 拼音匹配（热词 + 击键估算） |

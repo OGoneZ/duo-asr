@@ -2,15 +2,15 @@ import importlib
 from pathlib import Path
 from types import ModuleType
 
-import post_process
-from logger import setup_logger
+from app.post_process import core
+from app.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 # ── 后处理代码热重载 ──────────────────────────────────────────────────────────
 
-_POST_PROCESS_FILE = Path(__file__).parent / "post_process.py"
-_post_process_module: ModuleType = post_process
+_POST_PROCESS_FILE = Path(__file__).parent / "core.py"
+_post_process_module: ModuleType = core
 _checked_mtime_ns: int | None = None
 
 

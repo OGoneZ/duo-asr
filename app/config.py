@@ -3,7 +3,7 @@ from pathlib import Path
 import torch
 
 
-_REPO_ROOT = Path(__file__).parent
+_REPO_ROOT = Path(__file__).parent.parent
 
 # 模型
 MODEL_PATH = _REPO_ROOT / "models" / "Qwen3-ASR-1.7B"

@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from datetime import datetime
 
-import config
+from app import config
 
 
 class DailyLogHandler(logging.Handler):

@@ -1,8 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
-import api
-from errors import ModelLoadError
+from app import api
+from app.errors import ModelLoadError
 
 
 def test_model_preloads_on_startup(monkeypatch):

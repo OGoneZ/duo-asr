@@ -1,98 +1,21 @@
-from contextlib import asynccontextmanager
+"""HTTP 路由：转写主接口 + 仪表盘统计 API。"""
+from __future__ import annotations
+
 from datetime import datetime, timezone
 from pathlib import Path
-import asyncio
-import socket
 import time
 import uuid
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Request, Query
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 import soundfile as sf
 
-import config
-import db
-import model
-import stats
-from errors import ASRServerError, ModelLoadError
-from logger import setup_logger
+from app import config, db, model, stats
+from app.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-_PTR_CACHE_TTL_SECONDS = 300
-_ptr_cache: dict[str, tuple[str, float]] = {}
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # 服务启动时初始化数据库 + 预加载模型，避免首条语音请求触发冷启动。
-    logger.info("服务启动中，初始化数据库")
-    db.init()
-    config.RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
-
-    logger.info("预加载模型")
-    try:
-        model.load_model()
-    except Exception:
-        logger.exception("服务启动失败，模型预加载异常")
-        raise
-    logger.info("服务启动完成")
-    try:
-        yield
-    finally:
-        logger.info("服务正在关闭")
-
-
-app = FastAPI(lifespan=lifespan)
-
-# 静态资源（dashboard）— 仅在目录存在时挂载，避免冷启动报错
-if config.STATIC_DIR.exists():
-    app.mount(
-        "/dashboard",
-        StaticFiles(directory=str(config.STATIC_DIR / "dashboard"), html=True),
-        name="dashboard",
-    )
-
-
-def _request_label(request: Request) -> str:
-    return f"{request.method} {request.url.path}"
-
-
-def _is_allowed_client_ip(client_ip: str) -> bool:
-    if client_ip in config.ALLOWED_IPS:
-        return True
-    return any(client_ip.startswith(prefix) for prefix in config.ALLOWED_IP_PREFIXES)
-
-
-def _get_real_client_ip(request: Request) -> str:
-    # 走 Caddy 反代时 request.client.host 是 Caddy 的 10.0.0.1，
-    # 真正的 peer IP 在 X-Forwarded-For 里（Caddy 默认会加）。
-    xff = request.headers.get("x-forwarded-for")
-    if xff:
-        return xff.split(",")[0].strip()
-    return request.client.host
-
-
-async def _resolve_peer_name(ip: str) -> str:
-    if ip in {"127.0.0.1", "::1"}:
-        return "local"
-    now = time.time()
-    cached = _ptr_cache.get(ip)
-    if cached and cached[1] > now:
-        return cached[0]
-    try:
-        host, _, _ = await asyncio.to_thread(socket.gethostbyaddr, ip)
-        name = host.removesuffix(".").removesuffix(".wg") or ip
-    except (OSError, socket.herror):
-        name = ip
-    _ptr_cache[ip] = (name, now + _PTR_CACHE_TTL_SECONDS)
-    return name
-
-
-def _format_client(name: str, ip: str) -> str:
-    return ip if name == ip else f"{name} ({ip})"
+router = APIRouter()
 
 
 def _archive_audio(audio_bytes: bytes, suffix: str = ".wav") -> tuple[Path, str]:
@@ -115,46 +38,7 @@ def _audio_duration(path: Path) -> float | None:
         return None
 
 
-@app.exception_handler(ASRServerError)
-async def handle_service_error(request: Request, exc: ASRServerError):
-    status_code = 503 if isinstance(exc, ModelLoadError) else 500
-    return JSONResponse({"error": str(exc)}, status_code=status_code)
-
-
-@app.exception_handler(RequestValidationError)
-async def handle_validation_error(request: Request, exc: RequestValidationError):
-    logger.warning("请求参数校验失败: %s, errors=%s", _request_label(request), exc.errors())
-    return JSONResponse({"error": "Invalid request", "details": exc.errors()}, status_code=422)
-
-
-@app.exception_handler(HTTPException)
-async def handle_http_error(request: Request, exc: HTTPException):
-    log_method = logger.warning if exc.status_code < 500 else logger.error
-    log_method("HTTP异常: %s, status=%s, detail=%s", _request_label(request), exc.status_code, exc.detail)
-    return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
-
-
-@app.exception_handler(Exception)
-async def handle_unexpected_error(request: Request, exc: Exception):
-    logger.exception("未处理异常: %s", _request_label(request))
-    return JSONResponse({"error": "Internal server error"}, status_code=500)
-
-
-# 只允许 10.0.0.0/24 网段和本地访问
-@app.middleware("http")
-async def restrict_ip(request: Request, call_next):
-    client_ip = _get_real_client_ip(request)
-    if not _is_allowed_client_ip(client_ip):
-        logger.warning(f"拒绝非授权网段访问: {client_ip}")
-        return JSONResponse({"error": "Forbidden"}, status_code=403)
-    client_host = await _resolve_peer_name(client_ip)
-    request.state.client_ip = client_ip
-    request.state.client_host = client_host
-    logger.info(f"请求来源: {_format_client(client_host, client_ip)}")
-    return await call_next(request)
-
-
-@app.post("/v1/audio/transcriptions")
+@router.post("/v1/audio/transcriptions")
 async def transcribe(request: Request, file: UploadFile = File(...)):
     audio_bytes = await file.read()
     size = len(audio_bytes)
@@ -216,17 +100,17 @@ async def transcribe(request: Request, file: UploadFile = File(...)):
 
 # ---------- Dashboard 与统计 API ----------
 
-@app.get("/")
+@router.get("/")
 async def root_redirect():
     return RedirectResponse(url="/dashboard/")
 
 
-@app.get("/health")
+@router.get("/health")
 async def health():
     return {"status": "ok"}
 
 
-@app.get("/api/stats/summary")
+@router.get("/api/stats/summary")
 async def stats_summary(
     client: str | None = Query(None),
     days: int | None = Query(None, ge=1, le=3650),
@@ -240,7 +124,7 @@ async def stats_summary(
     return s
 
 
-@app.get("/api/stats/daily")
+@router.get("/api/stats/daily")
 async def stats_daily(
     days: int = Query(30, ge=1, le=365),
     client: str | None = Query(None),
@@ -248,17 +132,17 @@ async def stats_daily(
     return db.query_daily(days, client)
 
 
-@app.get("/api/stats/clients")
+@router.get("/api/stats/clients")
 async def stats_clients():
     return db.query_clients()
 
 
-@app.get("/api/stats/by-client")
+@router.get("/api/stats/by-client")
 async def stats_by_client(days: int = Query(30, ge=1, le=365)):
     return db.query_by_client(days)
 
 
-@app.get("/api/stats/recent")
+@router.get("/api/stats/recent")
 async def stats_recent(
     n: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
@@ -274,7 +158,7 @@ async def stats_recent(
     )
 
 
-@app.get("/api/recordings/{rec_id}")
+@router.get("/api/recordings/{rec_id}")
 async def recording_detail(rec_id: int):
     rec = db.get_by_id(rec_id)
     if not rec:
@@ -282,7 +166,7 @@ async def recording_detail(rec_id: int):
     return rec
 
 
-@app.get("/api/recordings/{rec_id}/audio")
+@router.get("/api/recordings/{rec_id}/audio")
 async def recording_audio(rec_id: int):
     rec = db.get_by_id(rec_id)
     if not rec or not rec.get("audio_path"):

@@ -1,15 +1,14 @@
 import importlib
 import os
-import shutil
 import sys
 from pathlib import Path
 
 import pytest
-import hot_reload
-import post_process
-from post_process import normalize_numbers
 
-_ORIGINAL_HOTWORDS_PATH = Path(post_process._HOTWORDS_FILE)
+from app.post_process import core, hot_reload
+from app.post_process import normalize_numbers
+
+_ORIGINAL_HOTWORDS_PATH = Path(core._HOTWORDS_FILE)
 _ORIGINAL_HOTWORDS_TEXT = _ORIGINAL_HOTWORDS_PATH.read_text(encoding="utf-8")
 
 
@@ -22,61 +21,83 @@ def _write_with_new_mtime(path: Path, content: str) -> None:
 
 @pytest.fixture(autouse=True)
 def reset_runtime_state():
-    sys.modules["post_process"] = post_process
-    sys.modules["hot_reload"] = hot_reload
-    importlib.reload(post_process)
+    importlib.reload(core)
     importlib.reload(hot_reload)
     yield
-    sys.modules["post_process"] = post_process
-    sys.modules["hot_reload"] = hot_reload
-    importlib.reload(post_process)
+    importlib.reload(core)
     importlib.reload(hot_reload)
 
 
 @pytest.fixture
 def hotwords_file(tmp_path):
-    hotwords_path = Path(post_process._HOTWORDS_FILE)
+    hotwords_path = Path(core._HOTWORDS_FILE)
     backup_path = tmp_path / "hotwords.toml.bak"
     backup_path.write_text(_ORIGINAL_HOTWORDS_TEXT, encoding="utf-8")
 
     yield hotwords_path
 
     _write_with_new_mtime(hotwords_path, backup_path.read_text(encoding="utf-8"))
-    importlib.reload(post_process)
+    importlib.reload(core)
     importlib.reload(hot_reload)
 
 
 @pytest.fixture
 def reloadable_modules(tmp_path):
+    """构造一个临时目录里独立的 core + hot_reload 副本，不污染主 app 包。"""
     module_dir = tmp_path / "reloadable"
     module_dir.mkdir()
     hotwords_path = module_dir / "hotwords.toml"
-    post_process_path = module_dir / "post_process.py"
-    hot_reload_path = module_dir / "hot_reload.py"
+    core_path = module_dir / "tmp_core.py"
+    hot_reload_path = module_dir / "tmp_hot_reload.py"
 
-    post_process_path.write_text(Path(post_process.__file__).read_text(encoding="utf-8"), encoding="utf-8")
-    hot_reload_path.write_text(Path(hot_reload.__file__).read_text(encoding="utf-8"), encoding="utf-8")
+    # 改写 core: 把 logger 依赖换为 stdlib logging，
+    # _HOTWORDS_FILE 指向同目录的 hotwords.toml
+    core_src = Path(core.__file__).read_text(encoding="utf-8")
+    core_src = core_src.replace(
+        "from app.logger import setup_logger",
+        "import logging\nsetup_logger = lambda name=None: logging.getLogger(name)",
+    )
+    core_src = core_src.replace(
+        '_HOTWORDS_FILE = Path(__file__).parent.parent.parent / "hotwords.toml"',
+        '_HOTWORDS_FILE = Path(__file__).parent / "hotwords.toml"',
+    )
+    core_path.write_text(core_src, encoding="utf-8")
+
+    # 改写 hot_reload: 改成从同目录加载 tmp_core
+    hot_reload_src = Path(hot_reload.__file__).read_text(encoding="utf-8")
+    hot_reload_src = hot_reload_src.replace(
+        "from app.post_process import core",
+        "import tmp_core as core",
+    )
+    hot_reload_src = hot_reload_src.replace(
+        "from app.logger import setup_logger",
+        "import logging\nsetup_logger = lambda name=None: logging.getLogger(name)",
+    )
+    hot_reload_src = hot_reload_src.replace(
+        '_POST_PROCESS_FILE = Path(__file__).parent / "core.py"',
+        '_POST_PROCESS_FILE = Path(__file__).parent / "tmp_core.py"',
+    )
+    hot_reload_path.write_text(hot_reload_src, encoding="utf-8")
+
     hotwords_path.write_text('[hotwords]\nFastAPI = ["fast api"]\n', encoding="utf-8")
 
     sys.path.insert(0, str(module_dir))
     try:
-        sys.modules.pop("post_process", None)
-        sys.modules.pop("hot_reload", None)
-        reloadable_post_process = importlib.import_module("post_process")
-        reloadable_hot_reload = importlib.import_module("hot_reload")
+        sys.modules.pop("tmp_core", None)
+        sys.modules.pop("tmp_hot_reload", None)
+        reloadable_core = importlib.import_module("tmp_core")
+        reloadable_hot_reload = importlib.import_module("tmp_hot_reload")
         yield {
             "module_dir": module_dir,
-            "post_process": reloadable_post_process,
+            "post_process": reloadable_core,
             "hot_reload": reloadable_hot_reload,
-            "post_process_path": post_process_path,
+            "post_process_path": core_path,
             "hotwords_path": hotwords_path,
         }
     finally:
-        sys.modules.pop("post_process", None)
-        sys.modules.pop("hot_reload", None)
+        sys.modules.pop("tmp_core", None)
+        sys.modules.pop("tmp_hot_reload", None)
         sys.path.remove(str(module_dir))
-        sys.modules["post_process"] = post_process
-        sys.modules["hot_reload"] = hot_reload
 
 
 # ── 含单位字的数字 ────────────────────────────────────────────────────────────
@@ -98,15 +119,14 @@ def test_unit_numbers(text, expected):
 # ── 裸单位字不误触发 ──────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("text, expected", [
-    ("还有两个是没改的",  "还有两个是没改的"),   # 两 前无单位
+    ("还有两个是没改的",  "还有两个是没改的"),
     ("两只猫",           "两只猫"),
     ("两点之间",         "两点之间"),
-    ("百度一下",         "百度一下"),            # 百 后无数字
+    ("百度一下",         "百度一下"),
     ("万岁",             "万岁"),
     ("千禧年",           "千禧年"),
     ("亿万富翁",         "亿万富翁"),
     ("十分好",           "十分好"),
-    # 十 后紧跟数字/单位时仍正常转换
     ("十五度",           "15 度"),
     ("十二",             "12"),
     ("一百万",           "1000000"),
@@ -170,10 +190,8 @@ def test_ip(text, expected):
     ("root艾特幺零点幺零点二零点三二",     "root@10.10.20.32"),
     ("root 艾特 一九二点一六八点一点一",   "root@192.168.1.1"),
     ("admin AT 一九二点一六八点一点一",    "admin@192.168.1.1"),
-    # at 右边无空格
     ("lab at幺零点幺点幺点六",            "lab@10.1.1.6"),
     ("ssh lab at幺零点幺点幺点六",        "ssh lab@10.1.1.6"),
-    # at 前后均无空格（多at六六点六六点一点二 → 多@66.66.1.2）
     ("多at六六点六六点一点二",            "多@66.66.1.2"),
     ("珠宝多at六六点六六点一点二",        "zhubaoduo@66.66.1.2"),
 ])
@@ -208,16 +226,14 @@ def test_spacing(text, expected):
 # ── 大写字母序列合并 ──────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("text, expected", [
-    ("S S H",                   "SSH"),      # ssh 不在热词中
-    ("D S P Y",                 "DSPy"),     # dspy 在热词中，合并后再热词纠正
+    ("S S H",                   "SSH"),
+    ("D S P Y",                 "DSPy"),
     ("A P I",                   "API"),
     ("通过 S S H 连接",          "通过 SSH 连接"),
     ("使用 D S P Y 框架",        "使用 DSPy 框架"),
     ("A I",                     "AI"),
     ("U R L",                   "URL"),
-    # 单个字母不触发
     ("I love it",               "I love it"),
-    # 已连写的不变
     ("SSH",                     "SSH"),
 ])
 def test_letter_seq(text, expected):
