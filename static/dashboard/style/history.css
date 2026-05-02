@@ -1,0 +1,416 @@
+mark {
+  background: linear-gradient(180deg,
+    transparent 0%, transparent 55%,
+    color-mix(in srgb, var(--data-3) 50%, transparent) 55%,
+    color-mix(in srgb, var(--data-3) 50%, transparent) 100%);
+  color: inherit;
+  border-radius: 1px;
+  padding: 0 2px;
+  font-weight: 600;
+}
+
+:root[data-theme="light"] mark {
+  background: linear-gradient(180deg,
+    transparent 0%, transparent 55%,
+    rgba(250, 204, 21, 0.7) 55%,
+    rgba(250, 204, 21, 0.7) 100%);
+}
+
+.detail-text del {
+  background: rgba(248, 113, 113, 0.18);
+  color: var(--error);
+  text-decoration: line-through;
+  text-decoration-color: rgba(248, 113, 113, 0.5);
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin: 0 1px;
+}
+
+.detail-text ins {
+  background: rgba(52, 211, 153, 0.18);
+  color: var(--data-2);
+  text-decoration: none;
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin: 0 1px;
+}
+
+:root[data-theme="light"] .detail-text del { background: rgba(220, 38, 38, 0.10); color: #b91c1c; }
+:root[data-theme="light"] .detail-text ins { background: rgba(16, 185, 129, 0.16); color: #047857; }
+
+/* diff 三态切换 */
+.detail-tabs {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  padding: 2px;
+  gap: 1px;
+}
+
+.diff-tab {
+  background: transparent;
+  border: none;
+  color: var(--fg-dim);
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+  border-radius: 5px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  transition: background 100ms, color 100ms;
+}
+
+.diff-tab:hover { color: var(--fg-strong); }
+
+.diff-tab[aria-selected="true"] {
+  background: var(--bg-elevated);
+  color: var(--fg-strong);
+  box-shadow: 0 0 0 0.5px var(--border), 0 1px 2px rgba(0, 0, 0, 0.30);
+}
+:root[data-theme="light"] .diff-tab[aria-selected="true"] {
+  box-shadow: 0 0 0 0.5px var(--border), 0 1px 2px rgba(15, 15, 25, 0.06);
+}
+
+.modified-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: color-mix(in srgb, var(--data-2) 14%, transparent);
+  color: var(--data-2);
+  border: 1px solid color-mix(in srgb, var(--data-2) 25%, transparent);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.modified-tag::before { content: "✦"; font-size: 9px; }
+
+:root[data-theme="light"] .modified-tag {
+  background: rgba(16, 185, 129, 0.10);
+  color: #047857;
+}
+
+.recent-list.in-search .recent-text {
+  -webkit-line-clamp: unset;
+  overflow: visible;
+  white-space: pre-wrap;
+}
+
+/* ================================================================
+ * 历史记录列表
+ * ================================================================ */
+.recent-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.recent-item {
+  position: relative;
+  /* 实底色 —— 不用 backdrop-filter：长列表上每项 GPU 重合成会导致滚动卡顿和空白 */
+  background: var(--bg-solid);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 14px 18px 14px 22px;
+  cursor: pointer;
+  transition: background 160ms, border-color 160ms, transform 160ms;
+  overflow: hidden;
+  /* 渲染优化：
+   *   contain —— 每项隔离 layout/paint/style，滚动时不波及整个文档树
+   *   transform: translateZ(0) —— 推到独立合成层，paint 结果可被浏览器缓存复用，
+   *     大幅降低快速滚动时"屏幕外卡片重 paint"的概率（消除空白闪烁）
+   * 注意：不用 content-visibility: auto —— 它会让屏幕外卡片"跳过渲染"，
+   *   快速滚动时浏览器来不及激活就显示空白占位 */
+  contain: layout paint style;
+  transform: translateZ(0);
+}
+
+:root[data-theme="dark"] .recent-item { background: var(--bg-solid); }
+
+/* 左侧 indicator bar */
+.recent-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  border-radius: 0;
+  background: var(--hl);
+  opacity: 0;
+  transition: opacity 200ms;
+}
+
+.recent-item:hover {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--bg-elevated) 70%, var(--hover));
+  transform: translateX(2px);
+}
+.recent-item:hover::before { opacity: 1; }
+.recent-item.expanded {
+  border-color: color-mix(in srgb, var(--hl) 35%, var(--border));
+  box-shadow: 0 8px 24px -10px rgba(0, 0, 0, 0.18);
+}
+.recent-item.expanded::before { opacity: 1; }
+
+.recent-item.has-error::before { background: var(--error); }
+
+.recent-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 6px;
+}
+
+.recent-meta-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--fg-dim);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.recent-date {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--fg-mid);
+}
+
+.recent-client {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--fg-mid);
+  white-space: nowrap;
+}
+.recent-client::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--data-2);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--data-2) 60%, transparent);
+}
+
+.recent-duration {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--data-1) 18%, transparent),
+    color-mix(in srgb, var(--data-5) 14%, transparent));
+  color: var(--data-1);
+  border: 1px solid color-mix(in srgb, var(--data-1) 28%, transparent);
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--data-1) 8%, transparent) inset;
+}
+
+.recent-text {
+  font-size: 14px;
+  color: var(--fg);
+  line-height: 1.55;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+
+.recent-item.expanded .recent-text {
+  -webkit-line-clamp: unset;
+  overflow: visible;
+  margin-bottom: 4px;
+}
+
+.recent-detail { margin-top: 14px; display: none; }
+.recent-item.expanded .recent-detail { display: block; animation: detail-in 280ms cubic-bezier(.16,1,.3,1); }
+
+@keyframes detail-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.detail-section {
+  padding: 14px 0;
+  border-top: 1px dashed var(--border-soft);
+}
+.detail-section:first-child { padding-top: 14px; }
+
+.detail-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.detail-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: var(--fg-dim);
+  font-weight: 700;
+}
+
+.btn-copy {
+  background: linear-gradient(135deg, #2a2520 0%, #1a1812 100%);
+  color: #fafaf7;
+  border: none;
+  padding: 6px 13px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: opacity 100ms, transform 100ms, box-shadow 200ms;
+  box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.35);
+}
+:root[data-theme="dark"] .btn-copy {
+  background: linear-gradient(135deg, var(--hl) 0%, var(--hl) 100%);
+  color: #1a1812;
+}
+
+.btn-copy:hover {
+  opacity: 0.95;
+  box-shadow: 0 6px 14px -2px rgba(0, 0, 0, 0.45);
+}
+.btn-copy:active { transform: scale(0.97); }
+.btn-copy.copied {
+  background: linear-gradient(135deg, var(--data-2), #059669);
+  box-shadow: 0 4px 10px -2px color-mix(in srgb, var(--data-2) 50%, transparent);
+}
+
+.detail-text {
+  font-size: 14px;
+  color: var(--fg);
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.detail-text-raw {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-mid);
+  background: var(--bg-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+audio {
+  width: 100%;
+  height: 38px;
+  filter: invert(0.92) hue-rotate(180deg) saturate(0.75);
+}
+:root[data-theme="light"] audio { filter: none; }
+
+/* 元信息横向排列：4 个 chip 一行展示，提高信息密度，窄屏自动换行 */
+.detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 24px;
+  font-size: 12px;
+}
+
+.meta-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.meta-label {
+  color: var(--fg-dim);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.meta-value {
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail-meta-icon {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--hl);
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: var(--hl-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.error-tag {
+  display: inline-block;
+  background: var(--error-soft);
+  color: var(--error);
+  border: 1px solid color-mix(in srgb, var(--error) 25%, transparent);
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.recent-item.has-error .recent-duration {
+  background: var(--error-soft);
+  color: var(--error);
+  border-color: color-mix(in srgb, var(--error) 25%, transparent);
+}
+
+.load-more { text-align: center; margin-top: 28px; }
+
+.load-more button {
+  background: var(--bg-elevated);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--fg-mid);
+  border: 1px solid var(--border);
+  padding: 9px 26px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: color 140ms, background 140ms, transform 140ms, border-color 140ms;
+}
+
+.load-more button:hover:not(:disabled) {
+  color: var(--fg-strong);
+  background: var(--hover);
+  border-color: color-mix(in srgb, var(--hl) 50%, var(--border));
+  transform: translateY(-1px);
+}
+
+.load-more button:disabled { opacity: 0.5; cursor: default; }

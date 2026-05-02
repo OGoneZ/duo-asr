@@ -1,0 +1,332 @@
+.hero-banner {
+  margin-bottom: 12px;
+  padding: 4px 8px 0;
+  text-align: center;
+}
+
+/* DuoASR 品牌名 —— 跟 hero 数字一样大 + logo 渐变填充 */
+.brand-name {
+  font-family: var(--font-display);
+  font-size: 2em;
+  font-weight: 800;
+  letter-spacing: -1.2px;
+  vertical-align: -0.18em;
+  background: var(--logo-gradient);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: var(--fg-strong);
+  animation: hero-shift 8s ease-in-out infinite;
+  margin: 0 4px;
+}
+
+.hero-banner-text {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--fg);
+  letter-spacing: -0.3px;
+  line-height: 1.4;
+}
+
+/* 关键数字 —— 比正文大 + 多色渐变 + 缓慢扫光 */
+.hero-big {
+  font-family: var(--font-display);
+  font-size: 2em;                /* 相对正文 22px ≈ 44px */
+  font-weight: 800;
+  letter-spacing: -1.4px;
+  font-variant-numeric: tabular-nums;
+  vertical-align: -0.18em;       /* 与中文 baseline 对齐 */
+  background: var(--hero-gradient);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: var(--fg-strong);       /* fallback */
+  margin: 0 4px;
+  animation: hero-shift 11s ease-in-out infinite;
+}
+
+@keyframes hero-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+.hero-banner-sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--fg-dim);
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 720px) {
+  .hero-banner-text { font-size: 16px; }
+  .hero-big { font-size: 1.7em; }
+}
+
+/* ================================================================
+ * 统计卡片 —— 灵魂区域
+ * ================================================================ */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+/* hero × 2，每张占 6 列 */
+.card-hero { grid-column: span 6; }
+/* 普通卡 × 4，每张占 3 列 */
+.cards .card:not(.card-hero) { grid-column: span 3; }
+
+@media (max-width: 1080px) {
+  .card-hero { grid-column: span 6; }
+  .cards .card:not(.card-hero) { grid-column: span 6; }
+}
+@media (max-width: 640px) {
+  .card-hero, .cards .card:not(.card-hero) { grid-column: span 12; }
+}
+
+.card {
+  position: relative;
+  background: var(--bg-elevated);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 14px 20px 16px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform 320ms cubic-bezier(.34, 1.56, .64, 1),
+              border-color 220ms,
+              box-shadow 220ms;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 108px;
+
+  /* 默认 tone（被 data-tone 覆盖） */
+  --tone: var(--data-1);
+
+  animation: card-in 540ms cubic-bezier(.16, 1, .3, 1) both;
+}
+
+.card[data-tone="violet"]  { --tone: var(--data-1); }
+.card[data-tone="amber"]   { --tone: var(--data-3); }
+.card[data-tone="pink"]    { --tone: var(--data-4); }
+.card[data-tone="emerald"] { --tone: var(--data-2); }
+.card[data-tone="sky"]     { --tone: var(--data-5); }
+.card[data-tone="lilac"]   { --tone: var(--data-7); }
+.card[data-tone="teal"]    { --tone: var(--data-8); }
+
+/* 顶部 accent 条 —— 流光扫动 */
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--tone) 75%, transparent) 30%,
+    color-mix(in srgb, var(--tone) 100%, transparent) 50%,
+    color-mix(in srgb, var(--tone) 75%, transparent) 70%,
+    transparent 100%);
+  background-size: 220% 100%;
+  opacity: 0.55;
+  transition: opacity 220ms;
+  animation: accent-sweep 9s ease-in-out infinite;
+}
+
+/* 让每张卡的流光起始相位错开，整体看起来像"序列灯" */
+.cards .card:nth-child(2)::before { animation-delay: -1.5s; }
+.cards .card:nth-child(3)::before { animation-delay: -3s; }
+.cards .card:nth-child(4)::before { animation-delay: -4.5s; }
+.cards .card:nth-child(5)::before { animation-delay: -6s; }
+.cards .card:nth-child(6)::before { animation-delay: -7.5s; }
+
+@keyframes accent-sweep {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+/* 角落柔光 —— 缓慢呼吸 */
+.card .card-glow {
+  position: absolute;
+  right: -40px;
+  bottom: -60px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center,
+    color-mix(in srgb, var(--tone) 55%, transparent) 0%,
+    transparent 70%);
+  filter: blur(38px);
+  opacity: 0.50;
+  z-index: -1;
+  transition: opacity 320ms, transform 320ms;
+  animation: glow-breathe 7s ease-in-out infinite;
+}
+.cards .card:nth-child(2) .card-glow { animation-delay: -1.2s; }
+.cards .card:nth-child(3) .card-glow { animation-delay: -2.4s; }
+.cards .card:nth-child(4) .card-glow { animation-delay: -3.6s; }
+.cards .card:nth-child(5) .card-glow { animation-delay: -4.8s; }
+.cards .card:nth-child(6) .card-glow { animation-delay: -6s; }
+
+@keyframes glow-breathe {
+  0%, 100% { opacity: 0.42; transform: scale(0.96); }
+  50%      { opacity: 0.65; transform: scale(1.06); }
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--tone) 28%, var(--border));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset,
+              0 28px 56px -22px rgba(0, 0, 0, 0.55),
+              0 12px 28px -12px color-mix(in srgb, var(--tone) 35%, transparent);
+}
+.card:hover::before { opacity: 1; }
+.card:hover .card-glow { opacity: 0.85; transform: scale(1.1); }
+
+.card-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tone) 22%, transparent);
+  margin-bottom: 4px;
+  transition: transform 320ms cubic-bezier(.34, 1.56, .64, 1);
+}
+
+.card-hero .card-icon { width: 36px; height: 36px; border-radius: 11px; }
+.card:hover .card-icon { transform: scale(1.06) rotate(-3deg); }
+
+.card-label {
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--fg-mid);
+  font-weight: 500;
+}
+
+.card-value {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.8px;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-strong);
+  line-height: 1.05;
+  margin-top: 4px;
+}
+
+/* hero 卡数字 —— 纯单色，让 hero 数字是焦点而不是奇观 */
+.card-hero .card-value {
+  font-size: 44px;
+  letter-spacing: -1.4px;
+  color: var(--fg-strong);
+}
+
+.card-unit {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--fg-dim);
+  margin-left: 6px;
+  -webkit-text-fill-color: var(--fg-dim);
+}
+.card-hero .card-unit { font-size: 18px; }
+
+/* 入场 stagger */
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.cards .card:nth-child(1) { animation-delay: 40ms; }
+.cards .card:nth-child(2) { animation-delay: 90ms; }
+.cards .card:nth-child(3) { animation-delay: 140ms; }
+.cards .card:nth-child(4) { animation-delay: 190ms; }
+.cards .card:nth-child(5) { animation-delay: 240ms; }
+.cards .card:nth-child(6) { animation-delay: 290ms; }
+
+.card-sub { font-size: 11px; margin-top: 6px; color: var(--fg-dim); }
+.card-sub-error { color: var(--error); }
+
+/* ================================================================
+ * 图表区
+ * ================================================================ */
+.chart-section {
+  position: relative;
+  background: var(--bg-elevated);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 16px 20px 18px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  animation: card-in 540ms cubic-bezier(.16, 1, .3, 1) both;
+  animation-delay: 340ms;
+}
+
+.chart-section::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--data-1), var(--data-2), transparent);
+  opacity: 0.45;
+}
+
+.chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.chart-section h2 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  color: var(--fg-strong);
+}
+
+.chart-section .muted {
+  display: block;
+  font-size: 12px;
+}
+
+.chart-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 5px 11px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  font-size: 11.5px;
+  color: var(--fg-mid);
+}
+
+.legend-item { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+
+.legend-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  display: inline-block;
+}
+.swatch-violet { background: var(--data-1); box-shadow: 0 0 8px color-mix(in srgb, var(--data-1) 60%, transparent); }
+.swatch-emerald { background: var(--data-2); box-shadow: 0 0 8px color-mix(in srgb, var(--data-2) 60%, transparent); }
+
+.chart-wrap { height: 260px; position: relative; }
