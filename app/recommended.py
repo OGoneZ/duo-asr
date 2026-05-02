@@ -1,29 +1,41 @@
 """推荐模型清单：手挑的 ASR 模型，按 family 分组。
 
-每个 family 包含若干 variant（不同参数规模 / 量化方式 / 转换格式）。
-要新增推荐 → 改这里 + commit；MLX / GGUF 等需要新 backend 的格式
-等支持后再补充进来。
+每个 family 包含若干 variant（不同参数规模、量化方式、是否带 VAD/标点等）。
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
 class RecommendedVariant:
-    model_id: str        # ModelScope 上的 org/name
-    label: str           # 短标签："1.7B (FP16)" / "0.6B" / "MLX 8bit"
-    backend: str         # qwen-asr / funasr / mlx
-    size_human: str
-    summary: str = ""    # 这个 variant 的差异点（精简）
-    available: bool = True   # False 表示当前服务尚不支持此 variant 的 backend
+    model_id: str           # ModelScope 上的 org/name
+    label: str              # 短标签：用作 variant 行标题，可省略 params/precision
+    backend: str            # qwen-asr / funasr / mlx
+    size_human: str         # 估算下载大小
+    params_b: float | None = None    # 参数量（B 单位，None 表示未知/不适用）
+    precision: str | None = None     # FP32 / FP16 / BF16 / FP8 / INT8 / INT4 / GGUF-Q4 / GGUF-Q8
+    summary: str = ""
+    available: bool = True
+
+    def to_dict(self) -> dict:
+        return {
+            "model_id": self.model_id,
+            "label": self.label,
+            "backend": self.backend,
+            "size_human": self.size_human,
+            "params_b": self.params_b,
+            "precision": self.precision,
+            "summary": self.summary,
+            "available": self.available,
+        }
 
 
 @dataclass(frozen=True)
 class RecommendedFamily:
-    family_id: str       # 用作前端 group key
-    name: str            # 展示名
-    summary: str         # family 简介
+    family_id: str
+    name: str
+    summary: str
     languages: tuple[str, ...] = ()
     tags: tuple[str, ...] = ()
     variants: tuple[RecommendedVariant, ...] = ()
@@ -35,7 +47,7 @@ class RecommendedFamily:
             "summary": self.summary,
             "languages": list(self.languages),
             "tags": list(self.tags),
-            "variants": [v.__dict__ for v in self.variants],
+            "variants": [v.to_dict() for v in self.variants],
         }
 
 
@@ -49,17 +61,57 @@ RECOMMENDED: list[RecommendedFamily] = [
         variants=(
             RecommendedVariant(
                 model_id="Qwen/Qwen3-ASR-1.7B",
-                label="1.7B (FP16)",
+                label="主力",
+                params_b=1.7,
+                precision="FP16",
                 backend="qwen-asr",
                 size_human="4.4 GB",
                 summary="主力版本，最高准确率",
             ),
             RecommendedVariant(
                 model_id="Qwen/Qwen3-ASR-0.6B",
-                label="0.6B (FP16)",
+                label="轻量",
+                params_b=0.6,
+                precision="FP16",
                 backend="qwen-asr",
                 size_human="~1.6 GB",
                 summary="参数更小，加载快、显存低",
+            ),
+        ),
+    ),
+    RecommendedFamily(
+        family_id="fun-asr",
+        name="Fun-ASR Nano",
+        summary="千问团队 + FunAudioLLM 联合，LLM 风格 ASR；中文/方言/英日多语种",
+        languages=("中文", "中文方言", "英文", "日文"),
+        tags=("dialect", "multilingual"),
+        variants=(
+            RecommendedVariant(
+                model_id="FunAudioLLM/Fun-ASR-Nano-2512",
+                label="标准",
+                params_b=0.6,
+                precision="FP16",
+                backend="funasr",
+                size_human="~1.5 GB",
+                summary="69 万下载量，最稳定的版本",
+            ),
+            RecommendedVariant(
+                model_id="fengge2024/Fun-ASR-Nano-2512-8bit",
+                label="8bit 量化",
+                params_b=0.6,
+                precision="INT8",
+                backend="funasr",
+                size_human="~750 MB",
+                summary="8bit 量化版，体积/显存减半",
+            ),
+            RecommendedVariant(
+                model_id="FunAudioLLM/Fun-ASR-MLT-Nano-2512",
+                label="MLT 多语言",
+                params_b=0.6,
+                precision="FP16",
+                backend="funasr",
+                size_human="~1.5 GB",
+                summary="多语言扩展版（multilingual）",
             ),
         ),
     ),
@@ -73,6 +125,8 @@ RECOMMENDED: list[RecommendedFamily] = [
             RecommendedVariant(
                 model_id="iic/SenseVoiceSmall",
                 label="Small",
+                params_b=0.234,
+                precision="FP16",
                 backend="funasr",
                 size_human="940 MB",
                 summary="轻量、上百倍实时速率",
@@ -89,6 +143,8 @@ RECOMMENDED: list[RecommendedFamily] = [
             RecommendedVariant(
                 model_id="iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch",
                 label="基础版",
+                params_b=0.22,
+                precision="FP16",
                 backend="funasr",
                 size_human="~840 MB",
                 summary="标准 Paraformer-Large",
@@ -96,13 +152,17 @@ RECOMMENDED: list[RecommendedFamily] = [
             RecommendedVariant(
                 model_id="iic/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch",
                 label="+ VAD + 标点",
+                params_b=0.22,
+                precision="FP16",
                 backend="funasr",
                 size_human="~880 MB",
                 summary="自带 VAD 端点检测和标点恢复，适合长音频",
             ),
             RecommendedVariant(
                 model_id="iic/speech_seaco_paraformer_large_asr_nat-zh-cn-16k-common-vocab8404-pytorch",
-                label="Seaco（热词版）",
+                label="Seaco（热词）",
+                params_b=0.22,
+                precision="FP16",
                 backend="funasr",
                 size_human="~840 MB",
                 summary="Paraformer + 热词增强，自定义词汇召回更高",
@@ -110,6 +170,8 @@ RECOMMENDED: list[RecommendedFamily] = [
             RecommendedVariant(
                 model_id="iic/speech_paraformer-large-vad-punc-spk_asr_nat-zh-cn",
                 label="+ VAD + 标点 + 说话人",
+                params_b=0.22,
+                precision="FP16",
                 backend="funasr",
                 size_human="~900 MB",
                 summary="加分角色识别（speaker diarization）",
@@ -126,6 +188,8 @@ RECOMMENDED: list[RecommendedFamily] = [
             RecommendedVariant(
                 model_id="iic/Whisper-large-v3-turbo",
                 label="Large v3 Turbo",
+                params_b=0.809,
+                precision="FP16",
                 backend="funasr",
                 size_human="~1.5 GB",
                 summary="最新 Turbo 版本，速度比 v3 提升 4 倍",

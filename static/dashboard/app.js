@@ -1686,21 +1686,64 @@ function renderVariantRow(v) {
         : `<button class="model-act-btn model-act-activate" data-action="activate" data-name="${escape(v.target_name)}">使用此模型</button>`)
     : `<button class="model-act-btn model-act-download" data-action="download" data-id="${escape(v.model_id)}">下载</button>`;
 
+  const paramsBadge = v.params_b != null
+    ? `<span class="model-badge model-badge-params">${formatParams(v.params_b)}</span>`
+    : "";
+  const precisionBadge = v.precision
+    ? `<span class="model-badge model-badge-precision">${escape(v.precision)}</span>`
+    : "";
+
+  const vram = estimateVram(v.params_b, v.precision);
+  const vramHint = vram
+    ? `<span class="variant-vram" title="按 ${escape(v.precision || "FP16")} 估算 · 公式：参数(B) × bytes × 1.2 overhead">显存约 ${vram}</span>`
+    : "";
+
   return `
     <li class="variant-row${v.is_current ? " is-current" : ""}">
       <div class="variant-main">
         <span class="variant-label">${escape(v.label)}</span>
+        ${paramsBadge}
+        ${precisionBadge}
         <span class="model-badge model-badge-backend">${escape(v.backend)}</span>
         ${stateBadge}
         <span class="variant-summary">${escape(v.summary || "")}</span>
       </div>
       <div class="variant-aside">
-        <span class="model-size">${escape(v.size_human)}</span>
+        <div class="variant-sizes">
+          <span class="model-size">${escape(v.size_human)}</span>
+          ${vramHint}
+        </div>
         ${action}
       </div>
       <div class="variant-id" title="${escape(v.model_id)}">${escape(v.model_id)}</div>
     </li>
   `;
+}
+
+function formatParams(b) {
+  if (b == null) return "";
+  if (b >= 1) return `${b}B`;
+  // 小于 1B 时以 M 为单位更直观
+  return `${Math.round(b * 1000)}M`;
+}
+
+// 显存估算：bytes_per_param 按精度查表 × 1.2 overhead（KV cache + activation）
+// 系数参考 vllm / huggingface 文档与社区共识
+const _BYTES_PER_PARAM = {
+  "FP32": 4, "BF32": 4,
+  "FP16": 2, "BF16": 2, "F16": 2,
+  "FP8": 1, "F8": 1,
+  "INT8": 1, "W8A16": 1, "Q8": 1.06,
+  "INT4": 0.5, "W4A16": 0.5, "Q4": 0.55, "GGUF Q4": 0.55, "GGUF-Q4": 0.55,
+  "INT2": 0.3,
+};
+
+function estimateVram(paramsB, precision) {
+  if (!paramsB) return null;
+  const bpp = _BYTES_PER_PARAM[(precision || "FP16").toUpperCase()] ?? 2;
+  const gb = paramsB * bpp * 1.2;
+  if (gb < 1) return `${Math.round(gb * 1024)} MB`;
+  return `${gb.toFixed(1)} GB`;
 }
 
 async function handleModelAction(e) {
