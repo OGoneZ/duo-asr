@@ -199,6 +199,22 @@ def test_at_sign(text, expected):
     assert normalize_numbers(text) == expected
 
 
+# ── @ 处理不应误伤日常英文 ──────────────────────────────────────────────────────
+# 触发条件本意是 email/IP，所以右侧没有 `.` 时一律不转。
+# 「at」是独立词时也要要求前后不紧贴英文字母（避免吃到 athletic 这种）。
+
+@pytest.mark.parametrize("text, expected", [
+    ("look at this",                "look at this"),                # 右侧无 `.`
+    ("meet me at the office",       "meet me at the office"),
+    ("I work at home",              "I work at home"),
+    ("playing athletic sports",     "playing athletic sports"),     # at 在词内部
+    ("the cat ate it",              "the cat ate it"),
+    ("好好看 at me",                "好好看 at me"),                # 中文 + at + 无点
+])
+def test_at_sign_no_false_positive(text, expected):
+    assert normalize_numbers(text) == expected
+
+
 # ── 域名 / 邮箱后缀（点 + 字母） ─────────────────────────────────────────────
 
 @pytest.mark.parametrize("text, expected", [

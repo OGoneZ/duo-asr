@@ -254,7 +254,15 @@ _RE_SEQ = re.compile(rf"{_DC}{{2,}}")
 # 连续单个大写字母（S S H → SSH，D S P Y → DSPY）。
 _RE_LETTER_SEQ = re.compile(r"(?<![A-Za-z])([A-Z])( [A-Z])+(?![A-Za-z])")
 # X at/艾特 Y → X@Y（email/地址中的 @ 读法）。
-_RE_AT = re.compile(r"(\S+?)(?:\s*at\s*|\s*艾特\s*)(\S+)", re.IGNORECASE)
+# 关键收紧：右侧必须含 `.`（域名 / IP 形态），否则日常英文「look at this」会被误转。
+# 「艾特」是明确读法 → 宽松。
+# 「at」收紧：必须是独立词，前后都不能紧贴 [A-Za-z]，避免「playing athletic.com」中
+# 把 athletic 里的 at 误识别（前 `y` / 后 `h` 都是字母 → 拒）。
+_RE_AT_ZH = re.compile(r"(\S+?)\s*艾特\s*(\S+\.\S+)")
+_RE_AT_EN = re.compile(
+    r"(\S+?)\s*(?<![A-Za-z])at(?![A-Za-z])\s*(\S+\.\S+)",
+    re.IGNORECASE,
+)
 # 点 + 字母 → .字母（域名/邮箱后缀，如「点com」/「点 com」→「.com」）。
 _RE_DOT_ALPHA = re.compile(r"\s*点\s*([a-zA-Z]+)")
 # 中文字符与阿拉伯数字之间插空格。
@@ -296,8 +304,10 @@ def normalize_numbers(text: str) -> str:
     text = _RE_DEC.sub(_sub_dec, text)  # 纯小数
     text = _RE_SEQ.sub(_sub_seq, text)  # 连续数字序列
     text = _RE_LETTER_SEQ.sub(lambda match: match.group().replace(" ", ""), text)  # S S H → SSH
-    text = _RE_AT.sub(r"\1@\2", text)  # at/艾特 → @
+    # 顺序：先把「点 com」拼回「.com」，然后判断 at/艾特 时右侧才能有 `.` 形态判定
     text = _RE_DOT_ALPHA.sub(r".\1", text)  # 点com → .com
+    text = _RE_AT_ZH.sub(r"\1@\2", text)    # 艾特 → @（明确读法）
+    text = _RE_AT_EN.sub(r"\1@\2", text)    # at → @（仅当看起来是 email/IP）
     text = _RE_SPACE_L.sub(" ", text)
     text = _RE_SPACE_R.sub(" ", text)
     return _sub_hotwords(text)  # 热词替换（可热更新）
