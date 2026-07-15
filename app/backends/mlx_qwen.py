@@ -69,7 +69,8 @@ class MlxAsrBackend:
             raise BackendError("MLX backend 未加载")
         t0 = time.perf_counter()
         try:
-            result = self._session.transcribe(audio_path)
+            with mx.stream(mx.gpu):
+                result = self._session.transcribe(audio_path)
         except Exception as exc:
             raise BackendError(f"MLX-Qwen3-ASR 推理失败: {audio_path}") from exc
         ms = int((time.perf_counter() - t0) * 1000)
