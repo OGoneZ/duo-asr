@@ -5,15 +5,30 @@
 """
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from app.backends.base import Backend, BackendError
 from app.backends.funasr import FunAsrBackend
 from app.backends.qwen import QwenAsrBackend
 
+_logger = logging.getLogger(__name__)
+
+try:
+    from app.backends.mlx_qwen import MlxAsrBackend  # noqa: F401
+except ImportError:
+    _logger.warning(
+        "MLX backend 未加载（缺少 mlx / mlx-qwen3-asr），"
+        "MLX 量化模型将不可用。安装: pip install mlx-qwen3-asr"
+    )
+    MlxAsrBackend = None  # type: ignore[assignment]
+
 # 注册顺序 = 检测优先级。第一个 ``can_handle`` 返回 True 的胜出。
-# Qwen 优先：Qwen 模型目录里 config.json 含 architectures，FunASR 兜底
-_REGISTRY: list[type[Backend]] = [QwenAsrBackend, FunAsrBackend]
+# MLX-Qwen 先于 Qwen：MLX 量化版和标准版都有 Qwen3ASR 架构，
+# 但 MLX 版 config.json 中有 quantization.mode=affine 且无 quant_method
+_REGISTRY: list[type[Backend]] = [
+    cls for cls in (MlxAsrBackend, QwenAsrBackend, FunAsrBackend) if cls is not None
+]
 
 
 def register(backend_cls: type[Backend]) -> None:

@@ -120,4 +120,22 @@ RECOMMENDED: list[RecommendedFamily] = [
             ),
         ),
     ),
+    RecommendedFamily(
+        family_id="mano-asr",
+        name="Mano-ASR",
+        summary="垂直领域 ASR（IT/互联网办公），MLX 量化，Qwen3-ASR 骨干",
+        languages=("中文", "英文", "粤语", "多语言"),
+        tags=("vertical-domain", "it-office", "mlx", "quantized"),
+        variants=(
+            RecommendedVariant(
+                model_id="Mininglamp2718/Mano-ASR-1.7B-Instruct-1.0-MLX-8bit",
+                label="Mano-ASR-1.7B-Instruct-1.0-MLX-8bit",
+                params_b=1.7,
+                precision="INT8",
+                backend="mlx-qwen3-asr",
+                size_human="2.4 GB",
+                summary="IT 办公场景优化，术语识别准确，8bit 量化",
+            ),
+        ),
+    ),
 ]

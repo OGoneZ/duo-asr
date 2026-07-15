@@ -102,6 +102,8 @@ dependencies = [
     { name = "fastapi" },
     { name = "funasr" },
     { name = "librosa" },
+    { name = "mlx" },
+    { name = "mlx-qwen3-asr" },
     { name = "modelscope" },
     { name = "pypinyin" },
     { name = "qwen-asr" },
@@ -122,6 +124,8 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.136.0" },
     { name = "funasr", specifier = ">=1.2.0" },
     { name = "librosa", specifier = ">=0.11.0" },
+    { name = "mlx", extras = ["cuda"], specifier = "==0.26.3" },
+    { name = "mlx-qwen3-asr", specifier = "==0.3.5" },
     { name = "modelscope", specifier = ">=1.21.0" },
     { name = "pypinyin", specifier = ">=0.55.0" },
     { name = "qwen-asr" },
@@ -1157,6 +1161,36 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec958cb99bd3efefba235e65cdeb9c84d24a8293ba1d90/mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba", size = 8729, upload-time = "2022-08-14T12:40:10.846Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979, upload-time = "2022-08-14T12:40:09.779Z" },
+]
+
+[[package]]
+name = "mlx"
+version = "0.26.3"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/26/bf/68deb588bc0cbb48f66f965202439bff3648fc6b8fc3798b317840c06b59/mlx-0.26.3-cp312-cp312-macosx_13_0_arm64.whl", hash = "sha256:e01b0f21bb2f38edd2be9e51db0e71b1bd74f8656fcb7571247255d1686e5ccb", size = 33955207, upload-time = "2025-07-08T21:31:50.523Z" },
+    { url = "https://files.pythonhosted.org/packages/82/73/0e13eb88baa4f87b70a802e0eb935edb27a52bddc1952df05fcb7a6f4d60/mlx-0.26.3-cp312-cp312-macosx_14_0_arm64.whl", hash = "sha256:4ba6fe10d68568b6cec5e781f6f0674be89cc99bf3182da9130bb29b80a32392", size = 33342440, upload-time = "2025-07-08T21:30:56.817Z" },
+    { url = "https://files.pythonhosted.org/packages/02/c6/1e344830ac1e46b5b456a8fa8d1455f8ee2c312e0df083f4093f6c7dc532/mlx-0.26.3-cp312-cp312-macosx_15_0_arm64.whl", hash = "sha256:63f8ff01abb933a04e44f0f2efe98c58fc7d3311e5863ea554a5858b69ac2a07", size = 33343862, upload-time = "2025-07-08T21:30:46.731Z" },
+    { url = "https://files.pythonhosted.org/packages/a2/51/313a16bd2a67758051cf1a18361d3bfe57f4ec99bc9328380198350e3f54/mlx-0.26.3-cp312-cp312-manylinux_2_31_x86_64.whl", hash = "sha256:992a208a05f570f1b1d4655100149c2f4aeb56a1b94874ae5d2fb8b7b87440d3", size = 10072484, upload-time = "2025-07-08T21:34:00.734Z" },
+    { url = "https://files.pythonhosted.org/packages/8a/4a/252ea27179c3733d099d5fef51cf1a3ae4da5ba0cf78f031b631b02bd380/mlx-0.26.3-cp313-cp313-macosx_13_0_arm64.whl", hash = "sha256:6895cdfbfc79225cc6e6a9ef06c2175124afe16ff5cdba9fa540bbb3450b4fc9", size = 33955210, upload-time = "2025-07-08T21:31:33.549Z" },
+    { url = "https://files.pythonhosted.org/packages/7e/ab/ebcd556b470b776c4f97abdc2f7418921dd49a1d69418f733ce2a9e427f2/mlx-0.26.3-cp313-cp313-macosx_14_0_arm64.whl", hash = "sha256:f800afe89512581e4a56f29382d3baed70b52708f32fcc213574bdddac725642", size = 33342472, upload-time = "2025-07-08T21:30:33.94Z" },
+    { url = "https://files.pythonhosted.org/packages/e8/87/15d98f0354f2a2022c5606a17f10cee62f558f98ec1308a49b50d838da44/mlx-0.26.3-cp313-cp313-macosx_15_0_arm64.whl", hash = "sha256:84e2aa1414463d4fd21a18339eda37a52725d7df7e8496a1dfb49feb57898097", size = 33343866, upload-time = "2025-07-08T21:31:32.251Z" },
+    { url = "https://files.pythonhosted.org/packages/4a/6e/b64d31616cabc24073e6f8b1250ca5bb0c930e275cc8c1e4a5d039b5bbb1/mlx-0.26.3-cp313-cp313-manylinux_2_31_x86_64.whl", hash = "sha256:c435d90d367be56173f7c98abbf658f3d61e5bf64a801094e0c0c239db5a1498", size = 10072491, upload-time = "2025-07-08T21:34:00.447Z" },
+]
+
+[[package]]
+name = "mlx-qwen3-asr"
+version = "0.3.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "huggingface-hub" },
+    { name = "mlx" },
+    { name = "numpy" },
+    { name = "regex" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3d/c2/b53450ad34ec4960bbb108701e8268e109c12b9888b101ea22f94897ffb5/mlx_qwen3_asr-0.3.5.tar.gz", hash = "sha256:3b2932a6cc5e162d8a686434ee0ea63e86a294c845451496729a6f0f6a0df050", size = 244181, upload-time = "2026-05-16T00:26:23.504Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7d/65/a450105650127e28c4467f834c8e71cdca422e62efa4161919bb1d94cd36/mlx_qwen3_asr-0.3.5-py3-none-any.whl", hash = "sha256:5c7169392a8d06f38ccc791b768cdc9e7fd6038a34130576c2af8b3afa28d06b", size = 168041, upload-time = "2026-05-16T00:26:21.879Z" },
 ]
 
 [[package]]
