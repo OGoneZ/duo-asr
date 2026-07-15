@@ -265,9 +265,9 @@ _RE_AT_EN = re.compile(
 )
 # 点 + 字母 → .字母（域名/邮箱后缀，如「点com」/「点 com」→「.com」）。
 _RE_DOT_ALPHA = re.compile(r"\s*点\s*([a-zA-Z]+)")
-# 中文字符与阿拉伯数字之间插空格。
-_RE_SPACE_L = re.compile(r"(?<=[^\x00-\x7F\s])(?=\d)")
-_RE_SPACE_R = re.compile(r"(?<=\d)(?=[^\x00-\x7F\s])")
+# 中文字符与阿拉伯数字/英文字母之间插空格。
+_RE_SPACE_L = re.compile(r"(?<=[^\x00-\x7F\s])(?=[A-Za-z\d])")
+_RE_SPACE_R = re.compile(r"(?<=[A-Za-z\d])(?=[^\x00-\x7F\s])")
 
 
 def _sub_unit(m: re.Match[str]) -> str:

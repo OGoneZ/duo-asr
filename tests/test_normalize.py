@@ -229,11 +229,13 @@ def test_dot_alpha(text, expected):
     assert normalize_numbers(text) == expected
 
 
-# ── 数字与中文之间的空格 ──────────────────────────────────────────────────────
+# ── 数字/英文字母与中文之间的空格 ────────────────────────────────────────────────
 
 @pytest.mark.parametrize("text, expected", [
     ("共三百二十五张票",   "共 325 张票"),
     ("二零二五年开始",     "2025 年开始"),
+    ("使用Python",        "使用 Python"),
+    ("FastAPI框架",       "FastAPI 框架"),
 ])
 def test_spacing(text, expected):
     assert normalize_numbers(text) == expected
