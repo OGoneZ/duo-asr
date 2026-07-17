@@ -76,6 +76,21 @@ uv run main.py
 
 服务默认监听 `0.0.0.0:9999`，纯 HTTP。前端面板访问 `http://localhost:9999/dashboard/`。
 
+### MLX 量化模型
+
+若使用 MLX 量化模型（如 Mano-ASR），需设置以下环境变量避免 CUDA cache 耗尽导致推理失败：
+
+```bash
+export MLX_CUDA_CONV_CACHE_SIZE=1024
+export MLX_CUDA_GRAPH_CACHE_SIZE=1024
+export MLX_CUDA_SDPA_CACHE_SIZE=1024
+export MLX_CUDA_FFT_CACHE_SIZE=1024
+```
+
+原因：MLX 对卷积算法、CUDA Graph、attention 算子的缓存有上限（默认 128~400），大模型（≥1.7B）+ 8bit 量化的计算图复杂度会超出默认容量。MLX 的设计选择是抛 `RuntimeError: Cache thrashing` 而非静默驱逐旧条目，以确保用户感知到性能退化。
+
+若使用标准 PyTorch 模型（`qwen-asr` 或 `funasr` backend）则无需关心以上变量。
+
 ## API
 
 ### POST /v1/audio/transcriptions
