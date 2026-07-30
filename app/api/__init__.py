@@ -1,10 +1,11 @@
 """FastAPI 应用装配：lifespan + 中间件 + 异常处理 + 路由 + 静态资源。"""
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from app import config, db, model
+from app import config, db, model, post_process_model
 from app.api import exceptions, middleware
 from app.api.routes import router
 from app.logger import setup_logger
@@ -21,6 +22,9 @@ async def lifespan(app: FastAPI):
 
     # 从持久化文件恢复上次切换到的激活模型（若有）
     model.restore_active_model_from_disk()
+
+    # 恢复后处理模型配置（若有）
+    post_process_model.restore_config_from_disk()
 
     logger.info("预加载模型")
     try:

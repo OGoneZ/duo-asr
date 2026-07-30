@@ -502,3 +502,160 @@ async def delete_model(name: str):
         shutil.rmtree(target)
     logger.info("已删除模型目录: %s", target)
     return {"ok": True, "deleted": name}
+
+
+# ---------- 后处理模型管理 ----------
+
+
+@router.get("/api/post-process/config")
+async def get_post_process_config():
+    """返回后处理配置 + 本地可用 GGUF 模型列表。"""
+    return post_process_model.get_config()
+
+
+@router.put("/api/post-process/config")
+async def put_post_process_config(payload: dict = Body(...)):
+    """更新后处理配置，持久化并触发 reload。
+
+    可更新字段: provider, model_name, endpoint_url, endpoint_key,
+    endpoint_model, prompt。其中 endpoint_key 为 "***" 占位符时保留旧值。
+    """
+    try:
+        result = post_process_model.update_config(payload)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return result
+
+
+@router.post("/api/post-process/active")
+async def post_post_process_active(payload: dict = Body(...)):
+    """切换激活的后处理模型。
+
+    payload: {"name": "model.gguf"}
+    """
+    name = (payload.get("name") or "").strip()
+    if not name or "/" in name or "\\" in name or name in (".", ".."):
+        raise HTTPException(400, f"非法模型名: {name!r}")
+    if not name.endswith(".gguf"):
+        raise HTTPException(400, "后处理模型必须是 .gguf 文件")
+    target = config.MODELS_DIR / name
+    if not target.is_file():
+        raise HTTPException(404, f"GGUF 文件不存在: {name}")
+
+    try:
+        import asyncio
+
+        await asyncio.to_thread(post_process_model.switch_model, name)
+    except Exception as exc:
+        raise HTTPException(500, f"切换失败: {exc}")
+    return {"ok": True, "active": name}
+
+
+@router.post("/api/post-process/test")
+async def post_post_process_test(payload: dict = Body(...)):
+    """测试后处理：对样本文本运行清理，返回结果和耗时。
+
+    payload: {"text": "待清理的文本"}
+    """
+    text = payload.get("text")
+    if not isinstance(text, str):
+        raise HTTPException(400, "缺少 text 字段")
+    if not text.strip():
+        return {"result": "", "elapsed_ms": 0, "provider": config.POST_PROCESS_PROVIDER}
+    return post_process_model.test_process(text)
+
+
+@router.get("/api/post-process/search")
+async def search_gguf_models(
+    q: str = Query("", description="搜索关键词"),
+    page: int = Query(1, ge=1, le=50),
+    page_size: int = Query(20, ge=5, le=50),
+):
+    """搜索 ModelScope 上的 GGUF 文本生成模型。
+
+    在关键词后追加 gguf 提高命中率，同时过滤掉明显的 ASR 模型。
+    """
+    if not q.strip():
+        return {
+            "query": "",
+            "page": page,
+            "page_size": page_size,
+            "total": 0,
+            "items": [],
+        }
+    # 追加 gguf 关键字提高 GGUF 模型命中率
+    enriched = f"{q.strip()} gguf"
+    try:
+        result = await modelscope_search.search(
+            enriched, page=page, page_size=page_size
+        )
+    except RuntimeError as exc:
+        raise HTTPException(502, str(exc))
+    # 过滤：排除 ASR 模型，优先显示 text-generation 相关
+    items = [it for it in result["items"] if not it.get("is_asr")]
+    downloaded_names = {m["name"] for m in models_registry.list_gguf_models()}
+    for it in items:
+        it["downloaded"] = it["name"] in downloaded_names
+        it["is_current"] = it["name"] == config.POST_PROCESS_MODEL_NAME
+    result["items"] = items
+    return result
+
+
+@router.post("/api/post-process/download")
+async def post_post_process_download(payload: dict = Body(...)):
+    """从 ModelScope 下载 GGUF 模型文件到 models/ 目录。
+
+    payload: {"model_id": "org/repo", "file_name": "model-q4_k_m.gguf"}
+    """
+    model_id = (payload.get("model_id") or "").strip()
+    file_name = (payload.get("file_name") or "").strip()
+    if not model_id or "/" not in model_id:
+        raise HTTPException(400, "model_id 必须形如 org/name")
+    if not file_name or not file_name.endswith(".gguf"):
+        raise HTTPException(400, "file_name 必须是 .gguf 文件")
+
+    import uuid as _uuid
+    import asyncio
+    from modelscope import snapshot_download
+
+    task_id = _uuid.uuid4().hex
+    logger.info("GGUF 下载任务 %s: %s → %s", task_id, model_id, file_name)
+
+    def _run():
+        snapshot_download(
+            model_id,
+            local_dir=str(config.MODELS_DIR),
+            allow_file_pattern=[file_name],
+        )
+
+    try:
+        await asyncio.to_thread(_run)
+    except Exception as exc:
+        logger.exception("GGUF 下载失败: %s → %s", model_id, file_name)
+        raise HTTPException(500, f"下载失败: {exc}")
+    target = config.MODELS_DIR / file_name
+    if not target.is_file():
+        raise HTTPException(500, f"下载完成但文件未找到: {file_name}")
+    return {"ok": True, "task_id": task_id, "file": file_name}
+
+
+@router.delete("/api/post-process/models/{name}")
+async def delete_post_process_model(name: str):
+    """删除 models/ 下的 GGUF 文件。"""
+    if not name or "/" in name or "\\" in name or name in (".", ".."):
+        raise HTTPException(400, f"非法文件名: {name!r}")
+    if name == config.POST_PROCESS_MODEL_NAME:
+        raise HTTPException(
+            409, "不能删除当前激活的后处理模型，请先切换到其他模型或设为不启用"
+        )
+
+    target = config.MODELS_DIR / name
+    try:
+        target.resolve().relative_to(config.MODELS_DIR.resolve())
+    except ValueError:
+        raise HTTPException(400, "目标路径不在 models/ 目录下")
+    if not target.is_file():
+        raise HTTPException(404, f"GGUF 文件不存在: {name}")
+    target.unlink()
+    logger.info("已删除 GGUF 文件: %s", target)
+    return {"ok": True, "deleted": name}

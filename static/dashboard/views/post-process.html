@@ -1,0 +1,119 @@
+<section class="view view-models" data-view="post-process">
+      <header class="view-header">
+        <div class="view-title">
+          <h1>后处理模型<span class="view-eyebrow">Post Process</span></h1>
+        </div>
+        <span class="muted">文本清理模型 — 对转录结果进行 LLM 二次整理</span>
+      </header>
+
+      <div id="pp-error" class="pp-error" hidden></div>
+
+      <!-- Provider 选择 -->
+      <h2 class="models-section-title">Provider 模式</h2>
+      <div class="pp-provider-group" id="pp-provider-group">
+        <label class="pp-provider-radio">
+          <input type="radio" name="pp-provider" value="none">
+          <div class="pp-provider-card">
+            <svg class="pp-provider-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+            <span class="pp-provider-label">不启用</span>
+            <span class="pp-provider-hint">直接透传</span>
+          </div>
+        </label>
+        <label class="pp-provider-radio">
+          <input type="radio" name="pp-provider" value="local">
+          <div class="pp-provider-card">
+            <svg class="pp-provider-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+            </svg>
+            <span class="pp-provider-label">本地 GGUF</span>
+            <span class="pp-provider-hint">llama.cpp 进程内推理</span>
+          </div>
+        </label>
+        <label class="pp-provider-radio">
+          <input type="radio" name="pp-provider" value="endpoint">
+          <div class="pp-provider-card">
+            <svg class="pp-provider-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10M12 2a15.3 15.3 0 0 0-4 10 15.3 15.3 0 0 0 4 10"/>
+            </svg>
+            <span class="pp-provider-label">自定义 Endpoint</span>
+            <span class="pp-provider-hint">OpenAI 兼容接口</span>
+          </div>
+        </label>
+      </div>
+
+      <!-- 本地模型管理区 -->
+      <div id="pp-local-section" hidden>
+        <h2 class="models-section-title">已下载</h2>
+        <ul class="pp-model-list" id="pp-local-list"></ul>
+
+        <h2 class="models-section-title">搜索 ModelScope GGUF</h2>
+        <div class="pp-search-row">
+          <svg class="pp-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input type="search" class="pp-search-input" id="pp-search-input"
+                 placeholder="搜索 GGUF 文本模型，如 qwen、llama、deepseek…"
+                 autocomplete="off" spellcheck="false">
+          <button class="pp-search-clear" id="pp-search-clear" type="button" aria-label="清空" hidden>×</button>
+        </div>
+        <p class="pp-search-hint">在关键词后自动追加 "gguf" 提高命中率。也可直接下载 .gguf 文件放入 models/ 目录。</p>
+        <div id="pp-search-status" class="pp-search-status" hidden></div>
+        <ul class="pp-search-results" id="pp-search-results"></ul>
+      </div>
+
+      <!-- Endpoint 配置区 -->
+      <div id="pp-endpoint-section" hidden>
+        <div class="pp-section">
+          <h3 class="pp-section-title">Endpoint 连接</h3>
+          <div class="pp-form-row">
+            <div>
+              <span class="pp-form-label">API 地址</span>
+              <input type="url" class="pp-form-input" id="pp-endpoint-url"
+                     placeholder="https://api.example.com/v1" autocomplete="off">
+            </div>
+            <div>
+              <span class="pp-form-label">API Key</span>
+              <input type="password" class="pp-form-input" id="pp-endpoint-key"
+                     placeholder="sk-..." autocomplete="off">
+            </div>
+            <div>
+              <span class="pp-form-label">模型名</span>
+              <input type="text" class="pp-form-input" id="pp-endpoint-model"
+                     placeholder="gpt-4o-mini" autocomplete="off">
+            </div>
+          </div>
+          <button class="pp-save-btn" id="pp-endpoint-save">保存 Endpoint 配置</button>
+        </div>
+      </div>
+
+      <!-- Prompt 编辑 -->
+      <div class="pp-section" id="pp-prompt-section">
+        <h3 class="pp-section-title">清理 Prompt</h3>
+        <textarea class="pp-prompt-textarea" id="pp-prompt-textarea"
+                  placeholder="输入 system prompt…" spellcheck="false"></textarea>
+        <button class="pp-save-btn" id="pp-prompt-save">保存 Prompt</button>
+      </div>
+
+      <!-- 测试区 -->
+      <div class="pp-section">
+        <h3 class="pp-section-title">测试</h3>
+        <textarea class="pp-test-input" id="pp-test-input"
+                  placeholder="输入一段待清理的文本，如「嗯那个就是我觉得这个方案还行吧对吧」…"></textarea>
+        <div style="margin-top: 12px; display: flex; align-items: center; gap: 12px;">
+          <button class="pp-test-btn" id="pp-test-btn">运行测试</button>
+          <span id="pp-test-meta" class="pp-test-meta" hidden></span>
+        </div>
+        <div class="pp-test-compare" id="pp-test-compare" hidden>
+          <div>
+            <div class="pp-test-col-label">原始文本</div>
+            <div class="pp-test-col-text" id="pp-test-original"></div>
+          </div>
+          <div>
+            <div class="pp-test-col-label">清理结果</div>
+            <div class="pp-test-col-text" id="pp-test-result"></div>
+          </div>
+        </div>
+      </div>
+</section>

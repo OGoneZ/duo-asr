@@ -20,7 +20,7 @@ def _auto_device() -> str:
 
 
 DEVICE = _auto_device()  # 想强制指定可直接改成 "cuda" / "mps" / "cpu"
-DTYPE = torch.float16    # torch.float16 / torch.bfloat16 / torch.float32
+DTYPE = torch.float16  # torch.float16 / torch.bfloat16 / torch.float32
 
 # HTTP
 HOST = "0.0.0.0"
@@ -44,3 +44,22 @@ STATIC_DIR = _REPO_ROOT / "static"
 
 # 热词词典（运行时可热更新）
 HOTWORDS_FILE = _REPO_ROOT / "hotwords.toml"
+
+# ── 后处理模型 ──
+POST_PROCESS_CONFIG_FILE = DATA_DIR / "post_process_config.json"
+POST_PROCESS_DEFAULT_PROMPT_FILE = _REPO_ROOT / "default_prompt.txt"
+POST_PROCESS_PROVIDER = "none"  # "none" | "local" | "endpoint"
+POST_PROCESS_MODEL_NAME = ""  # 当前激活的 GGUF 文件名（local 模式）
+POST_PROCESS_ENDPOINT_URL = ""  # 自定义 OpenAI-compatible endpoint
+POST_PROCESS_ENDPOINT_KEY = ""  # API key
+POST_PROCESS_ENDPOINT_MODEL = ""  # endpoint 侧模型名
+
+
+def _load_default_prompt() -> str:
+    p = POST_PROCESS_DEFAULT_PROMPT_FILE
+    if p.is_file():
+        return p.read_text(encoding="utf-8").strip()
+    return ""
+
+
+POST_PROCESS_PROMPT = _load_default_prompt()

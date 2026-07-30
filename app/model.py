@@ -3,12 +3,13 @@
 通过 ``app.backends.detect_backend(path)`` 根据目录指纹挑选 backend，
 统一通过 ``Backend`` 协议调度。切换/加载/释放都不感知具体实现。
 """
+
 from __future__ import annotations
 
 import threading
 from typing import NamedTuple
 
-from app import config, post_process, backends
+from app import backends, config, post_process
 from app.backends.base import Backend, BackendError
 from app.errors import ModelLoadError, PostProcessError, TranscriptionError
 from app.logger import setup_logger
@@ -49,7 +50,9 @@ def load_model() -> Backend:
             logger.exception("模型加载失败: %s", config.MODEL_PATH)
             raise ModelLoadError(f"模型加载失败: {config.MODEL_PATH}") from exc
         _backend = backend
-        logger.info("模型加载完成: backend=%s", getattr(backend, "name", type(backend).__name__))
+        logger.info(
+            "模型加载完成: backend=%s", getattr(backend, "name", type(backend).__name__)
+        )
         return _backend
 
 
@@ -154,6 +157,15 @@ def transcribe(audio_path: str) -> TranscribeResult:
         logger.exception("后处理失败: audio_path=%s, raw=%r", audio_path, raw)
         raise PostProcessError(f"后处理失败: {audio_path}") from exc
 
+    # LLM 文本清理（provider="none" 时透传，零开销）
+    try:
+        final = post_process_model.process_text(normalized)
+    except Exception:
+        logger.exception("LLM 后处理失败，降级为归一化结果")
+        final = normalized
+
     logger.info("原始输出: %s", raw)
     logger.info("后处理后: %s", normalized)
-    return TranscribeResult(raw=raw, final=normalized, inference_ms=ms)
+    if final != normalized:
+        logger.info("LLM 清理后: %s", final)
+    return TranscribeResult(raw=raw, final=final, inference_ms=ms)

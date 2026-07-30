@@ -7,6 +7,7 @@ const ROUTES = {
   transcribe: () => import("./views/transcribe.js"),
   hotwords:   () => import("./views/hotwords.js"),
   models:     () => import("./views/models.js"),
+  "post-process": () => import("./views/post-process.js"),
 };
 
 // 启动时立刻应用主题，避免闪白
