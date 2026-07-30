@@ -3,6 +3,7 @@
 检测条件：config.json 中有 ``quantization`` 字段且含 ``mode``（affine），
 但没有 ``quant_method``（非 HuggingFace GPTQ/AWQ 量化）。
 """
+
 from __future__ import annotations
 
 import gc
@@ -56,9 +57,13 @@ class MlxAsrBackend:
             return
         logger.info(
             "MLX-Qwen3-ASR 加载: %s (device=%s)",
-            self.model_path, self.device,
+            self.model_path,
+            self.device,
         )
         try:
+            # 限制 MLX GPU 内存池，避免 CUDA 预分配撑满显存。
+            # Mano-ASR 8-bit 约 2.3 GB，4 GB 留足推理余量。
+            mx.set_memory_limit(4 * 1024 * 1024 * 1024)
             self._session = Session(model=str(self.model_path))
         except Exception as exc:
             raise BackendError(f"MLX-Qwen3-ASR 加载失败: {self.model_path}") from exc
