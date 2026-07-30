@@ -1,18 +1,30 @@
 """HTTP 路由：转写主接口 + 仪表盘统计 API。"""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
 import shutil
+import subprocess
 import time
 import tomllib
 import uuid
 
 from fastapi import APIRouter, Body, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+
 import soundfile as sf
 
-from app import config, db, downloader, model, models_registry, modelscope_search, recommended, stats
+from app import (
+    config,
+    db,
+    downloader,
+    model,
+    models_registry,
+    modelscope_search,
+    recommended,
+    stats,
+)
 from app.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -32,19 +44,51 @@ def _archive_audio(audio_bytes: bytes, suffix: str = ".wav") -> tuple[Path, str]
     return abs_path, rel_path
 
 
+def _ffprobe_duration(path: Path) -> float | None:
+    """对 soundfile 不支持的格式（如 WebM/Opus），用 ffprobe 读取实际音频时长。"""
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-select_streams",
+                "a",
+                "-show_entries",
+                "packet=pts_time",
+                "-of",
+                "csv=p=0",
+                str(path),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        lines = [l for l in result.stdout.strip().split("\n") if l and l != "N/A"]
+        if not lines:
+            return None
+        return round(float(lines[-1]), 2)
+    except Exception:
+        logger.warning("ffprobe 无法读取音频时长: %s", path)
+        return None
+
+
 def _audio_duration(path: Path) -> float | None:
     try:
         return float(sf.info(str(path)).duration)
     except Exception:
-        logger.warning("无法读取音频时长: %s", path)
-        return None
+        return _ffprobe_duration(path)
 
 
 @router.post("/v1/audio/transcriptions")
 async def transcribe(request: Request, file: UploadFile = File(...)):
     audio_bytes = await file.read()
     size = len(audio_bytes)
-    size_str = f"{size / 1024 / 1024:.1f} MB" if size >= 1024 * 1024 else f"{size / 1024:.1f} KB"
+    size_str = (
+        f"{size / 1024 / 1024:.1f} MB"
+        if size >= 1024 * 1024
+        else f"{size / 1024:.1f} KB"
+    )
     logger.info(f"收到文件: {file.filename}, 大小: {size_str}")
 
     suffix = Path(file.filename or "").suffix or ".wav"
@@ -69,15 +113,17 @@ async def transcribe(request: Request, file: UploadFile = File(...)):
     except Exception as exc:
         elapsed = time.time() - start_time
         logger.exception("转写请求失败: filename=%s", file.filename)
-        db.insert_transcription({
-            **record_base,
-            "inference_ms": int(elapsed * 1000),
-            "text_raw": None,
-            "text_final": None,
-            "char_count": 0,
-            "keystroke_count": 0,
-            "error": str(exc),
-        })
+        db.insert_transcription(
+            {
+                **record_base,
+                "inference_ms": int(elapsed * 1000),
+                "text_raw": None,
+                "text_final": None,
+                "char_count": 0,
+                "keystroke_count": 0,
+                "error": str(exc),
+            }
+        )
         raise
 
     elapsed = time.time() - start_time
@@ -85,22 +131,27 @@ async def transcribe(request: Request, file: UploadFile = File(...)):
 
     char_count = len(result.final) if result.final else 0
     keystroke_count = stats.estimate_keystrokes(result.final)
-    post_processed = 1 if (result.raw and result.final and result.raw != result.final) else 0
-    db.insert_transcription({
-        **record_base,
-        "inference_ms": result.inference_ms,
-        "text_raw": result.raw,
-        "text_final": result.final,
-        "char_count": char_count,
-        "keystroke_count": keystroke_count,
-        "post_processed": post_processed,
-        "error": None,
-    })
+    post_processed = (
+        1 if (result.raw and result.final and result.raw != result.final) else 0
+    )
+    db.insert_transcription(
+        {
+            **record_base,
+            "inference_ms": result.inference_ms,
+            "text_raw": result.raw,
+            "text_final": result.final,
+            "char_count": char_count,
+            "keystroke_count": keystroke_count,
+            "post_processed": post_processed,
+            "error": None,
+        }
+    )
 
     return JSONResponse({"text": result.final})
 
 
 # ---------- Dashboard 与统计 API ----------
+
 
 @router.get("/")
 async def root_redirect():
@@ -110,6 +161,22 @@ async def root_redirect():
 @router.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@router.get("/v1/models")
+async def list_models():
+    """OpenAI-compatible model list endpoint, used by Voquill test integration."""
+    return {
+        "object": "list",
+        "data": [
+            {
+                "id": config.MODEL_NAME,
+                "object": "model",
+                "created": 0,
+                "owned_by": "local",
+            }
+        ],
+    }
 
 
 @router.get("/api/stats/summary")
@@ -155,8 +222,13 @@ async def stats_recent(
     post_processed: int | None = Query(None, ge=0, le=1),
 ):
     return db.query_recent(
-        n, offset, q=q, client=client,
-        since=since, until=until, post_processed=post_processed,
+        n,
+        offset,
+        q=q,
+        client=client,
+        since=since,
+        until=until,
+        post_processed=post_processed,
     )
 
 
@@ -180,6 +252,7 @@ async def recording_audio(rec_id: int):
 
 
 # ---------- 热词管理 ----------
+
 
 @router.get("/api/hotwords")
 async def get_hotwords():
@@ -221,10 +294,14 @@ async def put_hotwords(payload: dict = Body(...)):
                 raise HTTPException(400, f"hotword {key!r}: 列表元素必须全为字符串")
         elif isinstance(val, dict):
             variants = val.get("variants", [])
-            if not isinstance(variants, list) or not all(isinstance(v, str) for v in variants):
+            if not isinstance(variants, list) or not all(
+                isinstance(v, str) for v in variants
+            ):
                 raise HTTPException(400, f"hotword {key!r}.variants 必须是字符串列表")
             if "pinyin" in val:
-                if not isinstance(val["pinyin"], list) or not all(isinstance(v, str) for v in val["pinyin"]):
+                if not isinstance(val["pinyin"], list) or not all(
+                    isinstance(v, str) for v in val["pinyin"]
+                ):
                     raise HTTPException(400, f"hotword {key!r}.pinyin 必须是字符串列表")
         else:
             raise HTTPException(400, f"hotword {key!r}: 必须是列表或 table")
@@ -246,6 +323,7 @@ async def put_hotwords(payload: dict = Body(...)):
 
 # ---------- 模型管理 ----------
 
+
 @router.get("/api/models")
 async def get_models():
     """列出 models/ 下已下载的模型 + 当前激活标记 + 推荐清单。
@@ -265,7 +343,7 @@ async def get_models():
             target_name = v["model_id"].split("/")[-1]
             v["target_name"] = target_name
             v["downloaded"] = target_name in downloaded_names
-            v["is_current"] = (target_name == config.MODEL_NAME)
+            v["is_current"] = target_name == config.MODEL_NAME
             if v["downloaded"]:
                 any_downloaded = True
             if v["is_current"]:
@@ -350,7 +428,13 @@ async def search_modelscope(
     标记区分。每条结果带 ``downloaded`` 字段，标记本地是否已存在同名目录。
     """
     if not q.strip():
-        return {"query": "", "page": page, "page_size": page_size, "total": 0, "items": []}
+        return {
+            "query": "",
+            "page": page,
+            "page_size": page_size,
+            "total": 0,
+            "items": [],
+        }
     try:
         result = await modelscope_search.search(q, page=page, page_size=page_size)
     except RuntimeError as exc:
@@ -360,7 +444,7 @@ async def search_modelscope(
     downloaded_names = {m.name for m in models_registry.list_models()}
     for item in result["items"]:
         item["downloaded"] = item["name"] in downloaded_names
-        item["is_current"] = (item["name"] == config.MODEL_NAME)
+        item["is_current"] = item["name"] == config.MODEL_NAME
     return result
 
 
@@ -382,6 +466,7 @@ async def post_model_active(payload: dict = Body(...)):
     try:
         # 加载是 CPU/GPU 重活，丢到线程池避免阻塞 event loop
         import asyncio
+
         await asyncio.to_thread(model.switch_model, name)
     except Exception as exc:
         raise HTTPException(500, f"切换失败: {exc}")
