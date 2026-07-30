@@ -22,6 +22,7 @@ from app import (
     model,
     models_registry,
     modelscope_search,
+    post_process_model,
     recommended,
     stats,
 )
