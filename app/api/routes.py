@@ -565,6 +565,12 @@ async def post_post_process_test(payload: dict = Body(...)):
     return post_process_model.test_process(text)
 
 
+@router.post("/api/post-process/prompt/reload")
+async def post_post_process_prompt_reload():
+    """从 default_prompt.txt 重新加载 prompt 到内存。"""
+    return post_process_model.reload_default_prompt()
+
+
 @router.get("/api/post-process/search")
 async def search_gguf_models(
     q: str = Query("", description="搜索关键词"),

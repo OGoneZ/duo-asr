@@ -39,6 +39,48 @@ def _get_http() -> httpx.Client:
     return _http
 
 
+# ── 推荐 GGUF 模型 ─────────────────────────────────────
+
+RECOMMENDED_GGUF: list[dict] = [
+    {
+        "id": "qwen3.5-4b",
+        "name": "Qwen3.5 4B (Q4_K_M)",
+        "model_id": "Qwen/Qwen3.5-4B-Instruct-GGUF",
+        "file_name": "qwen3.5-4b-instruct-q4_k_m.gguf",
+        "size_human": "~2.4 GB",
+        "summary": "通义千问 3.5，中文理解优秀，速度快",
+        "params_b": 4.0,
+    },
+    {
+        "id": "qwen3.5-7b",
+        "name": "Qwen3.5 7B (Q4_K_M)",
+        "model_id": "Qwen/Qwen3.5-7B-Instruct-GGUF",
+        "file_name": "qwen3.5-7b-instruct-q4_k_m.gguf",
+        "size_human": "~4.7 GB",
+        "summary": "通义千问 3.5 7B，文本清理质量更高，需要更多显存",
+        "params_b": 7.0,
+    },
+    {
+        "id": "qwen3-4b",
+        "name": "Qwen3 4B (Q4_K_M)",
+        "model_id": "Qwen/Qwen3-4B-Instruct-GGUF",
+        "file_name": "qwen3-4b-instruct-q4_k_m.gguf",
+        "size_human": "~2.4 GB",
+        "summary": "千问 Qwen3，稳定可靠，显存占用小",
+        "params_b": 4.0,
+    },
+    {
+        "id": "deepseek-r1-1.5b",
+        "name": "DeepSeek-R1-Distill 1.5B (Q4_K_M)",
+        "model_id": "unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF",
+        "file_name": "DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf",
+        "size_human": "~1.1 GB",
+        "summary": "极小体积，极速推理，适合低显存场景",
+        "params_b": 1.5,
+    },
+]
+
+
 # ── 配置管理 ─────────────────────────────────────────────
 
 
@@ -140,14 +182,29 @@ def save_config_to_disk() -> None:
 
 
 def get_config() -> dict:
-    """返回当前配置（key 脱敏），附带本地可用 GGUF 列表。"""
+    """返回当前配置（key 脱敏），附带本地可用 GGUF 列表 + 推荐模型。"""
     from app.models_registry import list_gguf_models
 
     prompt = _cfg.prompt or config.POST_PROCESS_PROMPT
     d = _cfg.to_dict(mask_key=True)
     d["prompt"] = prompt
+    d["default_prompt"] = config.POST_PROCESS_PROMPT
     d["local_models"] = list_gguf_models()
+    d["recommended"] = RECOMMENDED_GGUF
     return d
+
+
+def reload_default_prompt() -> dict:
+    """重新从 default_prompt.txt 加载 prompt 到内存。
+
+    若用户未自定义 prompt（_cfg.prompt 为空），则同步更新。
+    返回 {prompt, default_prompt}。
+    """
+    fresh = config._load_default_prompt()
+    config.POST_PROCESS_PROMPT = fresh
+    if not _cfg.prompt:
+        _cfg.prompt = fresh
+    return {"prompt": _cfg.prompt, "default_prompt": fresh}
 
 
 def update_config(data: dict) -> dict:

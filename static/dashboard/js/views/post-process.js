@@ -20,6 +20,8 @@ export async function mount() {
   document.getElementById("pp-endpoint-save").addEventListener("click", saveEndpoint);
   // Prompt 保存
   document.getElementById("pp-prompt-save").addEventListener("click", savePrompt);
+  // Prompt 从文件重新加载
+  document.getElementById("pp-prompt-reload").addEventListener("click", reloadPrompt);
 
   // 搜索
   const searchInput = document.getElementById("pp-search-input");
@@ -71,10 +73,12 @@ function applyConfig(cfg) {
   document.getElementById("pp-endpoint-key").value = cfg.endpoint_key || "";
   document.getElementById("pp-endpoint-model").value = cfg.endpoint_model || "";
 
-  // Prompt
-  document.getElementById("pp-prompt-textarea").value = cfg.prompt || "";
+  // Prompt：优先用用户自定义，否则用 default_prompt 字段
+  const prompt = cfg.prompt || cfg.default_prompt || "";
+  document.getElementById("pp-prompt-textarea").value = prompt;
 
   // Local models
+  renderRecommended(cfg.recommended || [], cfg.local_models || []);
   renderLocalModels(cfg.local_models || [], cfg.model_name);
 }
 
@@ -86,6 +90,31 @@ function onProviderChange(provider) {
 }
 
 // ── 本地模型 ─────────────────────────────────────────
+
+function renderRecommended(recommended, localModels) {
+  const el = document.getElementById("pp-recommended-list");
+  if (!el) return;
+  if (!recommended.length) { el.innerHTML = ""; return; }
+  const localNames = new Set(localModels.map((m) => m.name));
+  el.innerHTML = recommended.map((r) => {
+    const downloaded = localNames.has(r.file_name);
+    const isCurrent = r.file_name === localModels.find((m) => m.is_current)?.name;
+    const action = downloaded
+      ? (isCurrent ? "" : `<button class="pp-model-act-btn pp-model-act-activate" data-action="activate" data-name="${escape(r.file_name)}">使用此模型</button>`)
+      : `<button class="model-act-btn model-act-download" data-action="download-rec" data-id="${escape(r.model_id)}" data-file="${escape(r.file_name)}">下载</button>`;
+    return `
+    <li class="pp-model-card${isCurrent ? " is-current" : ""}">
+      <div class="pp-model-info">
+        <span class="pp-model-name" title="${escape(r.name)}">${escape(r.name)}</span>
+        ${isCurrent ? '<span class="model-badge model-badge-current">当前激活</span>' : (downloaded ? '<span class="model-badge model-badge-downloaded">已下载</span>' : "")}
+        <span class="pp-model-size">${escape(r.size_human)}</span>
+      </div>
+      <div class="pp-model-actions">${action}</div>
+      ${r.summary ? `<div class="variant-summary-line" style="grid-column:1/-1;padding:0">${escape(r.summary)}</div>` : ""}
+    </li>`;
+  }).join("");
+  el.onclick = handleLocalAction;
+}
 
 function renderLocalModels(models, activeName) {
   const el = document.getElementById("pp-local-list");
@@ -118,6 +147,28 @@ async function handleLocalAction(e) {
   const name = btn.dataset.name;
   if (action === "activate") return activateModel(name, btn);
   if (action === "delete") return deleteModel(name, btn);
+  if (action === "download-rec") return downloadRecommended(btn.dataset.id, btn.dataset.file, btn);
+}
+
+async function downloadRecommended(modelId, fileName, btn) {
+  btn.disabled = true;
+  btn.textContent = "下载中…";
+  try {
+    const r = await fetch("/api/post-process/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model_id: modelId, file_name: fileName }),
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) { showError(`下载失败: ${body.error || r.status}`); btn.disabled = false; btn.textContent = "下载"; return; }
+    toast("GGUF 模型下载完成");
+    hideError();
+    await loadConfig();
+  } catch (err) {
+    showError(`请求失败: ${err.message || err}`);
+    btn.disabled = false;
+    btn.textContent = "下载";
+  }
 }
 
 async function activateModel(name, btn) {
@@ -198,6 +249,19 @@ async function saveEndpoint() {
 }
 
 // ── Prompt 保存 ──────────────────────────────────────
+
+async function reloadPrompt() {
+  try {
+    const r = await fetch("/api/post-process/prompt/reload", { method: "POST" });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) { showError(`加载失败: ${body.error || r.status}`); return; }
+    document.getElementById("pp-prompt-textarea").value = body.default_prompt || body.prompt || "";
+    hideError();
+    toast("已从 default_prompt.txt 重新加载");
+  } catch (err) {
+    showError(`请求失败: ${err.message || err}`);
+  }
+}
 
 async function savePrompt() {
   const btn = document.getElementById("pp-prompt-save");

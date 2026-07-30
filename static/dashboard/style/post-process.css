@@ -126,10 +126,10 @@
   border-radius: 12px;
 }
 .pp-model-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 14px;
   align-items: center;
-  justify-content: space-between;
-  gap: 14px;
   padding: 12px 16px;
   border: 1px solid var(--border-soft);
   border-radius: 12px;

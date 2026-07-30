@@ -45,6 +45,9 @@
 
       <!-- 本地模型管理区 -->
       <div id="pp-local-section" hidden>
+        <h2 class="models-section-title">推荐模型</h2>
+        <ul class="pp-model-list" id="pp-recommended-list"></ul>
+
         <h2 class="models-section-title">已下载</h2>
         <ul class="pp-model-list" id="pp-local-list"></ul>
 
@@ -93,7 +96,10 @@
         <h3 class="pp-section-title">清理 Prompt</h3>
         <textarea class="pp-prompt-textarea" id="pp-prompt-textarea"
                   placeholder="输入 system prompt…" spellcheck="false"></textarea>
-        <button class="pp-save-btn" id="pp-prompt-save">保存 Prompt</button>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="pp-save-btn" id="pp-prompt-save">保存 Prompt</button>
+          <button class="pp-save-btn" id="pp-prompt-reload" style="background:transparent;color:var(--fg-mid);border-color:var(--border-soft);">从文件重新加载</button>
+        </div>
       </div>
 
       <!-- 测试区 -->
