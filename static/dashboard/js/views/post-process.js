@@ -97,10 +97,13 @@ function renderRecommended(recommended, localModels) {
   if (!recommended.length) { el.innerHTML = ""; return; }
   const localNames = new Set(localModels.map((m) => m.name));
   el.innerHTML = recommended.map((r) => {
-    const downloaded = localNames.has(r.file_name);
-    const isCurrent = r.file_name === localModels.find((m) => m.is_current)?.name;
+    // 模糊匹配：本地文件名包含推荐模型的关键词即认为已下载
+    const localMatch = localModels.find((m) => _fuzzyMatch(m.name, r.file_name));
+    const downloaded = !!localMatch;
+    const localName = localMatch ? localMatch.name : r.file_name;
+    const isCurrent = localMatch ? localMatch.is_current : false;
     const action = downloaded
-      ? (isCurrent ? "" : `<button class="pp-model-act-btn pp-model-act-activate" data-action="activate" data-name="${escape(r.file_name)}">使用此模型</button>`)
+      ? (isCurrent ? "" : `<button class="pp-model-act-btn pp-model-act-activate" data-action="activate" data-name="${escape(localName)}">使用此模型</button>`)
       : `<button class="model-act-btn model-act-download" data-action="download-rec" data-id="${escape(r.model_id)}" data-file="${escape(r.file_name)}">下载</button>`;
     return `
     <li class="pp-model-card${isCurrent ? " is-current" : ""}">
@@ -475,4 +478,23 @@ function toast(msg, isError = false) {
   document.body.appendChild(el);
   setTimeout(() => { el.style.opacity = "0"; el.style.transition = "opacity 0.3s"; }, 2500);
   setTimeout(() => el.remove(), 3000);
+}
+
+// 模糊匹配：检查本地文件名和推荐文件名是否指向同一模型
+function _fuzzyMatch(localName, recName) {
+  const a = localName.replace(/\.gguf$/i, "").toLowerCase();
+  const b = recName.replace(/\.gguf$/i, "").toLowerCase();
+  if (a === b) return true;
+  // 提取核心关键词：模型族 + 参数量 + 量化方式
+  const extract = (s) => {
+    const parts = s.split("-").filter((p) => p.length >= 2);
+    // 取重要的部分：模型名(qwen3.5)、参数量(q4_k_m)、量化等
+    const key = parts.filter((p) =>
+      /^(qwen|llama|deepseek|mistral|phi|gemma|[a-z]+3)/.test(p) ||
+      /^\d+b$/i.test(p) ||
+      /^q\d/.test(p)
+    );
+    return key.join("-");
+  };
+  return extract(a) === extract(b);
 }
