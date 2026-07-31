@@ -16,6 +16,7 @@ export async function mount() {
   document.getElementById("pp-endpoint-save").addEventListener("click", saveEndpoint);
   document.getElementById("pp-prompt-save").addEventListener("click", savePrompt);
   document.getElementById("pp-prompt-reload").addEventListener("click", reloadPrompt);
+  document.getElementById("pp-enable-thinking").addEventListener("change", saveThinking);
 
   const searchInput = document.getElementById("pp-search-input");
   const clearBtn = document.getElementById("pp-search-clear");
@@ -61,6 +62,7 @@ function applyConfig(cfg) {
   document.getElementById("pp-endpoint-model").value = cfg.endpoint_model || "";
   const prompt = cfg.prompt || cfg.default_prompt || "";
   document.getElementById("pp-prompt-textarea").value = prompt;
+  document.getElementById("pp-enable-thinking").checked = !!cfg.enable_thinking;
   renderRecommended(cfg.recommended || [], cfg.local_models || []);
   renderLocalModels(cfg.local_models || [], cfg.model_name);
 }
@@ -187,6 +189,18 @@ async function saveEndpoint() {
     if (!r.ok) { showError(`保存失败: ${body.error || r.status}`); } else { hideError(); toast("Endpoint 配置已保存"); }
   } catch (err) { showError(`请求失败: ${err.message || err}`); }
   btn.disabled = false; btn.textContent = "保存 Endpoint 配置";
+}
+
+async function saveThinking() {
+  try {
+    const r = await fetch("/api/post-process/config", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enable_thinking: document.getElementById("pp-enable-thinking").checked }),
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) { showError(`保存失败: ${body.error || r.status}`); return; }
+    hideError();
+  } catch (err) { showError(`请求失败: ${err.message || err}`); }
 }
 
 async function savePrompt() {

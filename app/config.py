@@ -57,6 +57,7 @@ POST_PROCESS_MODEL_NAME = ""  # 当前激活的 GGUF 文件名（local 模式）
 POST_PROCESS_ENDPOINT_URL = ""  # 自定义 OpenAI-compatible endpoint
 POST_PROCESS_ENDPOINT_KEY = ""  # API key
 POST_PROCESS_ENDPOINT_MODEL = ""  # endpoint 侧模型名
+POST_PROCESS_ENABLE_THINKING = False
 
 
 def _load_default_prompt() -> str:

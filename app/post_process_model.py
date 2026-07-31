@@ -55,6 +55,7 @@ class _Config:
     endpoint_key: str = ""
     endpoint_model: str = ""
     prompt: str = ""
+    enable_thinking: bool = False
 
     def to_dict(self, mask_key: bool = False) -> dict:
         d = {
@@ -63,6 +64,7 @@ class _Config:
             "endpoint_url": self.endpoint_url,
             "endpoint_model": self.endpoint_model,
             "prompt": self.prompt,
+            "enable_thinking": self.enable_thinking,
         }
         if mask_key and self.endpoint_key:
             d["endpoint_key"] = "***" + self.endpoint_key[-4:]
@@ -79,6 +81,7 @@ class _Config:
             endpoint_key=d.get("endpoint_key", ""),
             endpoint_model=d.get("endpoint_model", ""),
             prompt=d.get("prompt", ""),
+            enable_thinking=d.get("enable_thinking", False),
         )
 
 
@@ -105,6 +108,7 @@ def _push_config_to_module() -> None:
     config.POST_PROCESS_ENDPOINT_MODEL = _cfg.endpoint_model
     if _cfg.prompt:
         config.POST_PROCESS_PROMPT = _cfg.prompt
+    config.POST_PROCESS_ENABLE_THINKING = _cfg.enable_thinking
 
 
 def restore_config_from_disk() -> None:
@@ -178,6 +182,8 @@ def update_config(data: dict) -> dict:
             _cfg.endpoint_key = key
     if "prompt" in data:
         _cfg.prompt = data["prompt"]
+    if "enable_thinking" in data:
+        _cfg.enable_thinking = bool(data["enable_thinking"])
     _push_config_to_module()
     save_config_to_disk()
     if need_reload:
@@ -215,7 +221,7 @@ def _load_local_model() -> None:
         _llm = Llama(
             model_path=str(model_path),
             n_gpu_layers=-1,
-            n_ctx=2048,
+            n_ctx=4096,
             offload_kqv=True,
             verbose=False,
         )
@@ -291,9 +297,10 @@ def _process_local(text: str, prompt: str) -> str:
             {"role": "system", "content": prompt},
             {"role": "user", "content": text},
         ],
-        max_tokens=1024,
+        max_tokens=2048,
         temperature=0.1,
         top_p=0.9,
+        chat_template_kwargs={"enable_thinking": _cfg.enable_thinking},
     )
     result = response["choices"][0]["message"]["content"]
     return result.strip() if result else text
