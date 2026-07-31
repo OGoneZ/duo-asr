@@ -327,7 +327,8 @@ function toggleDetail(li, item) {
     ["🔧", "后处理", item.postprocess_ms ? fmtSeconds(item.postprocess_ms) : "—"],
     ["⌨", "节省击键", `${fmtNum(item.keystroke_count)}`],
     ["#", "字数", `${fmtNum(item.char_count)}`],
-    ["⚙", "模型", escape(item.model_name || "—")],
+    ["🎯", "ASR 模型", escape(item.model_name || "—")],
+    ["🤖", "后处理模型", escape(item.post_model_name || "—")],
   ];
   html += `
     <div class="detail-section">

@@ -106,6 +106,7 @@ async def transcribe(request: Request, file: UploadFile = File(...)):
         "client_ip": getattr(request.state, "client_ip", None),
         "client_host": getattr(request.state, "client_host", None),
         "model_name": config.MODEL_NAME,
+        "post_model_name": config.POST_PROCESS_MODEL_NAME or None,
     }
 
     start_time = time.time()

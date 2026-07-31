@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS transcriptions (
     client_ip       TEXT,
     client_host     TEXT,
     model_name      TEXT,
+    post_model_name TEXT,
     post_processed  INTEGER DEFAULT 0,
     error           TEXT
 );
@@ -45,6 +46,8 @@ def init() -> None:
         }
         if "model_name" not in existing:
             conn.execute("ALTER TABLE transcriptions ADD COLUMN model_name TEXT")
+        if "post_model_name" not in existing:
+            conn.execute("ALTER TABLE transcriptions ADD COLUMN post_model_name TEXT")
         if "post_processed" not in existing:
             conn.execute(
                 "ALTER TABLE transcriptions ADD COLUMN post_processed INTEGER DEFAULT 0"
@@ -236,7 +239,7 @@ def query_recent(
             f"""
             SELECT id, created_at, audio_duration, inference_ms, postprocess_ms,
                    text_raw, text_final, char_count, keystroke_count,
-                   client_host, client_ip, model_name, post_processed, error
+                   client_host, client_ip, model_name, post_model_name, post_processed, error
             FROM transcriptions
             {where}
             ORDER BY created_at DESC, id DESC
