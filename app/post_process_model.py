@@ -300,7 +300,6 @@ def _process_local(text: str, prompt: str) -> str:
         max_tokens=2048,
         temperature=0.1,
         top_p=0.9,
-        chat_template_kwargs={"enable_thinking": _cfg.enable_thinking},
     )
     result = response["choices"][0]["message"]["content"]
     return result.strip() if result else text
