@@ -2,12 +2,12 @@
 import { applyTheme, readTheme, toggleTheme } from "./lib/theme.js";
 
 const ROUTES = {
-  home:       () => import("./views/home.js?v=2"),
-  history:    () => import("./views/history.js?v=2"),
-  transcribe: () => import("./views/transcribe.js?v=2"),
-  hotwords:   () => import("./views/hotwords.js?v=2"),
-  models:     () => import("./views/models.js?v=2"),
-  "post-process": () => import("./views/post-process.js?v=2"),
+  home:       () => import("./views/home.js?v=3"),
+  history:    () => import("./views/history.js?v=3"),
+  transcribe: () => import("./views/transcribe.js?v=3"),
+  hotwords:   () => import("./views/hotwords.js?v=3"),
+  models:     () => import("./views/models.js?v=3"),
+  "post-process": () => import("./views/post-process.js?v=3"),
 };
 
 // 启动时立刻应用主题，避免闪白
@@ -36,7 +36,7 @@ async function navigate() {
   // 注入 fragment
   const main = document.getElementById("main-content");
   try {
-    const r = await fetch(`views/${view}.html?v=2`);
+    const r = await fetch(`views/${view}.html?v=3`);
     if (!r.ok) throw new Error(`view ${view} → ${r.status}`);
     main.innerHTML = await r.text();
   } catch (err) {
