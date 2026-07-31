@@ -118,6 +118,7 @@ async def transcribe(request: Request, file: UploadFile = File(...)):
             {
                 **record_base,
                 "inference_ms": int(elapsed * 1000),
+                "postprocess_ms": 0,
                 "text_raw": None,
                 "text_final": None,
                 "char_count": 0,
@@ -139,6 +140,7 @@ async def transcribe(request: Request, file: UploadFile = File(...)):
         {
             **record_base,
             "inference_ms": result.inference_ms,
+            "postprocess_ms": result.postprocess_ms,
             "text_raw": result.raw,
             "text_final": result.final,
             "char_count": char_count,

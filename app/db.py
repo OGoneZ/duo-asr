@@ -1,10 +1,10 @@
 """SQLite 持久化：转录记录的写入与查询。"""
+
 from __future__ import annotations
 
 import sqlite3
 import threading
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Any
 
 from app import config
@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS transcriptions (
     audio_size      INTEGER,
     audio_duration  REAL,
     inference_ms    INTEGER,
+    postprocess_ms  INTEGER DEFAULT 0,
     text_raw        TEXT,
     text_final      TEXT,
     char_count      INTEGER,
@@ -39,12 +40,15 @@ def init() -> None:
     with _connect() as conn:
         conn.executescript(_SCHEMA)
         # 幂等迁移：旧 db 缺列时补加
-        existing = {r["name"] for r in conn.execute("PRAGMA table_info(transcriptions)")}
+        existing = {
+            r["name"] for r in conn.execute("PRAGMA table_info(transcriptions)")
+        }
         if "model_name" not in existing:
             conn.execute("ALTER TABLE transcriptions ADD COLUMN model_name TEXT")
         if "post_processed" not in existing:
-            conn.execute("ALTER TABLE transcriptions ADD COLUMN post_processed INTEGER DEFAULT 0")
-            # 回填历史数据：raw != final 视为经过后处理
+            conn.execute(
+                "ALTER TABLE transcriptions ADD COLUMN post_processed INTEGER DEFAULT 0"
+            )
             conn.execute("""
                 UPDATE transcriptions
                 SET post_processed = CASE
@@ -54,6 +58,10 @@ def init() -> None:
                     ELSE 0
                 END
             """)
+        if "postprocess_ms" not in existing:
+            conn.execute(
+                "ALTER TABLE transcriptions ADD COLUMN postprocess_ms INTEGER DEFAULT 0"
+            )
 
 
 @contextmanager
@@ -115,6 +123,9 @@ def query_summary(client: str | None = None, days: int | None = None) -> dict:
                 COALESCE(SUM(keystroke_count), 0)   AS total_keystrokes,
                 COALESCE(SUM(audio_duration), 0)    AS total_duration_sec,
                 COALESCE(AVG(inference_ms), 0)      AS avg_inference_ms,
+                COALESCE(
+                    AVG(CASE WHEN postprocess_ms > 0 THEN postprocess_ms END), 0
+                )                                   AS avg_postprocess_ms,
                 MIN(created_at)                     AS first_at,
                 MAX(created_at)                     AS last_at
             FROM transcriptions
@@ -223,7 +234,7 @@ def query_recent(
     with _connect() as conn:
         rows = conn.execute(
             f"""
-            SELECT id, created_at, audio_duration, inference_ms,
+            SELECT id, created_at, audio_duration, inference_ms, postprocess_ms,
                    text_raw, text_final, char_count, keystroke_count,
                    client_host, client_ip, model_name, post_processed, error
             FROM transcriptions

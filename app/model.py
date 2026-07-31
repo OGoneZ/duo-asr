@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from typing import NamedTuple
 
 from app import backends, config, post_process
@@ -24,6 +25,7 @@ class TranscribeResult(NamedTuple):
     raw: str
     final: str
     inference_ms: int
+    postprocess_ms: int
 
 
 def _create_backend(model_path) -> Backend:
@@ -151,6 +153,8 @@ def transcribe(audio_path: str) -> TranscribeResult:
     if not raw:
         raise TranscriptionError(f"模型推理返回空结果: {audio_path}")
 
+    # 归一化
+    t0 = time.perf_counter()
     try:
         normalized = post_process.normalize_numbers(raw)
     except Exception as exc:
@@ -164,8 +168,12 @@ def transcribe(audio_path: str) -> TranscribeResult:
         logger.exception("LLM 后处理失败，降级为归一化结果")
         final = normalized
 
+    post_ms = int((time.perf_counter() - t0) * 1000)
+
     logger.info("原始输出: %s", raw)
     logger.info("后处理后: %s", normalized)
     if final != normalized:
         logger.info("LLM 清理后: %s", final)
-    return TranscribeResult(raw=raw, final=final, inference_ms=ms)
+    return TranscribeResult(
+        raw=raw, final=final, inference_ms=ms, postprocess_ms=post_ms
+    )

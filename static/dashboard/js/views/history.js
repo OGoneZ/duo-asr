@@ -323,7 +323,8 @@ function toggleDetail(li, item) {
   }
 
   const metaRows = [
-    ["⏱", "推理耗时", fmtSeconds(item.inference_ms)],
+    ["⏱", "ASR 推理", fmtSeconds(item.inference_ms)],
+    ["🔧", "后处理", item.postprocess_ms ? fmtSeconds(item.postprocess_ms) : "—"],
     ["⌨", "节省击键", `${fmtNum(item.keystroke_count)}`],
     ["#", "字数", `${fmtNum(item.char_count)}`],
     ["⚙", "模型", escape(item.model_name || "—")],

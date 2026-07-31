@@ -214,8 +214,9 @@ def _load_local_model() -> None:
     try:
         _llm = Llama(
             model_path=str(model_path),
-            n_gpu_layers=0,
+            n_gpu_layers=-1,
             n_ctx=2048,
+            offload_kqv=True,
             verbose=False,
         )
     except Exception:

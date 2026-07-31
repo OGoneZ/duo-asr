@@ -115,6 +115,7 @@ async function loadSummary() {
     s.avg_duration_sec ? s.avg_duration_sec : "—";
   document.getElementById("stat-cpm").textContent = s.chars_per_minute || "—";
   document.getElementById("stat-inference").textContent = fmtSecondsValue(s.avg_inference_ms);
+  document.getElementById("stat-postprocess").textContent = fmtSecondsValue(s.avg_postprocess_ms);
 
   document.getElementById("last-update").textContent =
     `更新 ${new Date().toLocaleTimeString()}`;
