@@ -10,7 +10,7 @@ import threading
 import time
 from typing import NamedTuple
 
-from app import backends, config, post_process
+from app import backends, config, post_process, post_process_model
 from app.backends.base import Backend, BackendError
 from app.errors import ModelLoadError, PostProcessError, TranscriptionError
 from app.logger import setup_logger

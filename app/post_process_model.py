@@ -197,23 +197,6 @@ def _resolve_model_path() -> Path | None:
     return None
 
 
-def _ensure_cuda_library() -> None:
-    """设置 LLAMA_CPP_LIB 指向 conda 的 CUDA 版 libllama.so，启用 GPU 加速。"""
-    import os as _os
-
-    if "LLAMA_CPP_LIB" in _os.environ:
-        return
-    candidates = [
-        _os.path.expanduser("~/miniforge3/lib/libllama.so"),
-    ]
-    for p in candidates:
-        if _os.path.isfile(p):
-            _os.environ["LLAMA_CPP_LIB"] = p
-            logger.info("使用 CUDA 版 llama.cpp: %s", p)
-            return
-    logger.warning("未找到 conda CUDA 版 libllama.so，将使用 CPU 推理")
-
-
 def _load_local_model() -> None:
     global _llm
     if _llm is not None:
@@ -227,7 +210,6 @@ def _load_local_model() -> None:
     except ImportError:
         logger.error("llama-cpp-python 未安装")
         return
-    _ensure_cuda_library()
     logger.info("加载后处理模型: %s", model_path)
     try:
         _llm = Llama(
