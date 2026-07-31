@@ -18,3 +18,4 @@ migration
 # 热词管理保存生成的备份/临时文件
 hotwords.toml.bak
 hotwords.toml.tmp
+.cuda-libs/

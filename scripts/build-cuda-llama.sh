@@ -1,13 +1,10 @@
 #!/bin/bash
-# 一键编译 CUDA 版 llama-cpp-python 并部署到 venv
-# 用法: bash scripts/rebuild-cuda-llama.sh
+# 首次编译 CUDA 版 llama-cpp-python + 备份（只需运行一次）
 set -e
 
 CUDA_HOME=/tmp/pip-cuda
 SRC_DIR=/tmp/llama-build/llama_cpp_python-0.3.34
-VENV=/home/zhubaoduo/explore/asr-server/.venv
 
-# 1. 创建 CUDA_HOME（如果不存在）
 if [ ! -f "$CUDA_HOME/bin/nvcc" ]; then
     echo "=== 创建 pip CUDA_HOME ==="
     mkdir -p $CUDA_HOME/{bin,include,lib64}
@@ -21,7 +18,6 @@ if [ ! -f "$CUDA_HOME/bin/nvcc" ]; then
     done
 fi
 
-# 2. Patch Blackwell 驱动 Bug（如果未 patch）
 if [ ! -f "$SRC_DIR/.patched" ]; then
     echo "=== Patching Blackwell driver bug ==="
     sed -i 's/info\.devices\[id\]\.smpbo = prop\.sharedMemPerBlockOptin;/info.devices[id].smpbo = (prop.sharedMemPerBlockOptin > 1024 * 1024) ? prop.sharedMemPerBlock : prop.sharedMemPerBlockOptin;/' \
@@ -29,26 +25,17 @@ if [ ! -f "$SRC_DIR/.patched" ]; then
     touch $SRC_DIR/.patched
 fi
 
-# 3. 编译
-echo "=== Building llama-cpp-python with CUDA ==="
+echo "=== 编译 llama-cpp-python CUDA 版 (约 5 分钟) ==="
 export CUDAToolkit_ROOT=$CUDA_HOME
 FORCE_CMAKE=1 CMAKE_ARGS="-DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=120" \
     pip install $SRC_DIR --force-reinstall --no-cache-dir
 
-# 4. 部署到 venv
-echo "=== Deploying to venv ==="
+echo "=== 备份编译产物 ==="
+mkdir -p /home/zhubaoduo/explore/asr-server/.cuda-libs
 SYS=$(python -c "import site; print(site.getsitepackages()[0])")
-rm -rf $VENV/lib/python3.12/site-packages/llama_cpp
-rm -rf $VENV/lib/python3.12/site-packages/llama_cpp_python-*
-cp -r $SYS/llama_cpp $VENV/lib/python3.12/site-packages/
-cp -r $SYS/llama_cpp_python-* $VENV/lib/python3.12/site-packages/
+rm -rf /home/zhubaoduo/explore/asr-server/.cuda-libs/llama_cpp
+cp -r $SYS/llama_cpp /home/zhubaoduo/explore/asr-server/.cuda-libs/
+cp -r $SYS/llama_cpp_python-* /home/zhubaoduo/explore/asr-server/.cuda-libs/
 
-# 5. 验证
-echo "=== Verify ==="
-CUDA_COUNT=$(nm -D $SYS/llama_cpp/lib/libggml-cuda.so 2>/dev/null | grep -c cublas)
-if [ "$CUDA_COUNT" -gt 0 ]; then
-    echo "OK: $CUDA_COUNT CUDA symbols in libggml-cuda.so"
-else
-    echo "FAIL: no CUDA symbols"
-    exit 1
-fi
+echo "=== 部署到 venv ==="
+bash /home/zhubaoduo/explore/asr-server/scripts/rebuild-cuda-llama.sh
