@@ -2,12 +2,12 @@
 import { applyTheme, readTheme, toggleTheme } from "./lib/theme.js";
 
 const ROUTES = {
-  home:       () => import("./views/home.js"),
-  history:    () => import("./views/history.js"),
-  transcribe: () => import("./views/transcribe.js"),
-  hotwords:   () => import("./views/hotwords.js"),
-  models:     () => import("./views/models.js"),
-  "post-process": () => import("./views/post-process.js"),
+  home:       () => import("./views/home.js?v=2"),
+  history:    () => import("./views/history.js?v=2"),
+  transcribe: () => import("./views/transcribe.js?v=2"),
+  hotwords:   () => import("./views/hotwords.js?v=2"),
+  models:     () => import("./views/models.js?v=2"),
+  "post-process": () => import("./views/post-process.js?v=2"),
 };
 
 // 启动时立刻应用主题，避免闪白
@@ -36,7 +36,7 @@ async function navigate() {
   // 注入 fragment
   const main = document.getElementById("main-content");
   try {
-    const r = await fetch(`views/${view}.html`);
+    const r = await fetch(`views/${view}.html?v=2`);
     if (!r.ok) throw new Error(`view ${view} → ${r.status}`);
     main.innerHTML = await r.text();
   } catch (err) {
@@ -47,7 +47,7 @@ async function navigate() {
   // 加载并 mount view module
   try {
     const mod = await ROUTES[view]();
-    await mod.mount?.();
+    if (mod.mount) await mod.mount();
     currentModule = mod;
   } catch (err) {
     console.error(`mount ${view} failed`, err);
