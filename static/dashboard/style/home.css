@@ -76,8 +76,8 @@
   margin-bottom: 18px;
 }
 
-/* hero × 2，每张占 6 列 */
-.card-hero { grid-column: span 6; }
+/* hero × 3，每张占 4 列 */
+.card-hero { grid-column: span 4; }
 /* 普通卡 × 4，每张占 3 列 */
 .cards .card:not(.card-hero) { grid-column: span 3; }
 
@@ -146,6 +146,7 @@
 .cards .card:nth-child(4)::before { animation-delay: -4.5s; }
 .cards .card:nth-child(5)::before { animation-delay: -6s; }
 .cards .card:nth-child(6)::before { animation-delay: -7.5s; }
+.cards .card:nth-child(7)::before { animation-delay: -9s; }
 
 @keyframes accent-sweep {
   0%, 100% { background-position: 0% 50%; }
@@ -174,6 +175,7 @@
 .cards .card:nth-child(4) .card-glow { animation-delay: -3.6s; }
 .cards .card:nth-child(5) .card-glow { animation-delay: -4.8s; }
 .cards .card:nth-child(6) .card-glow { animation-delay: -6s; }
+.cards .card:nth-child(7) .card-glow { animation-delay: -7.2s; }
 
 @keyframes glow-breathe {
   0%, 100% { opacity: 0.42; transform: scale(0.96); }
@@ -253,6 +255,7 @@
 .cards .card:nth-child(4) { animation-delay: 190ms; }
 .cards .card:nth-child(5) { animation-delay: 240ms; }
 .cards .card:nth-child(6) { animation-delay: 290ms; }
+.cards .card:nth-child(7) { animation-delay: 340ms; }
 
 .card-sub { font-size: 11px; margin-top: 6px; color: var(--fg-dim); }
 .card-sub-error { color: var(--error); }

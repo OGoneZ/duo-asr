@@ -31,7 +31,7 @@
       </section>
 
       <div class="cards">
-        <!-- Hero × 2 -->
+        <!-- 第一行 × 3 -->
         <div class="card card-hero" data-tone="violet">
           <div class="card-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -60,11 +60,9 @@
           </div>
           <span class="card-glow" aria-hidden="true"></span>
         </div>
-
-        <!-- Small × 4 -->
-        <div class="card" data-tone="pink">
+        <div class="card card-hero" data-tone="pink">
           <div class="card-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <rect x="2" y="6" width="20" height="12" rx="2"/>
               <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>
             </svg>
@@ -75,6 +73,8 @@
           </div>
           <span class="card-glow" aria-hidden="true"></span>
         </div>
+
+        <!-- 第二行 × 4 -->
         <div class="card" data-tone="emerald">
           <div class="card-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -113,13 +113,13 @@
               <path d="m16.24 7.76 2.83-2.83"/>
             </svg>
           </div>
-          <div class="card-label">ASR 推理耗时</div>
+          <div class="card-label">平均 ASR 推理耗时</div>
           <div class="card-value">
             <span id="stat-inference">—</span><span class="card-unit">s</span>
           </div>
           <span class="card-glow" aria-hidden="true"></span>
         </div>
-        <div class="card" data-tone="pink">
+        <div class="card" data-tone="sky">
           <div class="card-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="14 2 14 8 20 8"/>
@@ -128,7 +128,7 @@
               <line x1="12" y1="9" x2="12" y2="15"/>
             </svg>
           </div>
-          <div class="card-label">后处理耗时</div>
+          <div class="card-label">平均后处理耗时</div>
           <div class="card-value">
             <span id="stat-postprocess">—</span><span class="card-unit">s</span>
           </div>
