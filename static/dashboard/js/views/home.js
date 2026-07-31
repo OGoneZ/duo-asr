@@ -164,6 +164,18 @@ async function loadDaily() {
     durations.push(row ? +(row.duration_sec / 60).toFixed(1) : 0);
   }
 
+  // 从最早有数据的那天开始显示，避免前面大片空白
+  let startIdx = 0;
+  while (startIdx < labels.length - 1) {
+    if (chars[startIdx] > 0 || durations[startIdx] > 0) break;
+    startIdx++;
+  }
+  if (startIdx > 0) {
+    labels.splice(0, startIdx);
+    chars.splice(0, startIdx);
+    durations.splice(0, startIdx);
+  }
+
   const niceRange = (vals) => {
     const filtered = vals.filter((v) => v > 0);
     if (filtered.length === 0) return { min: 0, max: 1 };
