@@ -205,7 +205,6 @@ def _ensure_cuda_library() -> None:
         return
     candidates = [
         _os.path.expanduser("~/miniforge3/lib/libllama.so"),
-        _os.path.expanduser("~/anaconda3/lib/libllama.so"),
     ]
     for p in candidates:
         if _os.path.isfile(p):
