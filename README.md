@@ -1,63 +1,69 @@
 # ASR Server
 
-基于 Qwen3-ASR-1.7B 的语音识别 HTTP 服务，兼容 OpenAI `/v1/audio/transcriptions` 接口格式，并内置中文数字后处理（将中文数字转换为阿拉伯数字）。TLS 由外部反向代理（如 Caddy）承担，本服务专注于应用逻辑。
+基于 Qwen3-ASR-1.7B / Mano-ASR 的语音识别 HTTP 服务，兼容 OpenAI `/v1/audio/transcriptions` 接口格式，内置中文数字后处理、LLM 文本清理、模型管理面板。TLS 由外部反向代理（如 Caddy）承担，本服务专注于应用逻辑。
 
 ## 功能特性
 
-- **语音识别**：使用 Qwen3-ASR-1.7B 模型，支持中英文混合识别
+- **语音识别**：支持 Qwen3-ASR、SenseVoice、Whisper 等多款 ASR 模型，热切换无需重启
+- **LLM 后处理**：可选本地 GPU 推理（llama-cpp-python + Qwen3.5 4B Q4_K_M）或云端 Endpoint 对转写结果进行二次清理
 - **中文数字后处理**：自动将识别结果中的中文数字转换为阿拉伯数字
 - **热词修正**：支持精确匹配 + 拼音匹配两种模式，词典 `hotwords.toml` 支持热更新
-- **使用面板**：内置 Dashboard（`/dashboard/`），统计字数 / 击键 / 时长，支持搜索与筛选
+- **使用面板**：内置 Dashboard（`/dashboard/`），统计字数 / 击键 / 时长 / 推理耗时，支持搜索与筛选
+- **模型管理**：Web 页面管理 ASR 模型和后处理模型，支持 ModelScope 搜索、下载、切换
 - **IP 白名单**：仅允许 `127.0.0.1`、`::1` 及 `10.0.0.0/24` 网段访问
 - **日志归档**：按月分目录、按天分文件，路径格式为 `logs/YYYY-MM/YYYY-MM-DD.log`
 
-## 中文数字后处理规则
+## 性能
 
-| 场景 | 输入示例 | 输出示例 |
-|------|----------|----------|
-| 含单位字的整数 | 三百二十五元 | 325 元 |
-| 亿/万级大数 | 一百二十三万四千五百六十七 | 1234567 |
-| 纯小数 | 三点一四一五九 | 3.14159 |
-| 含小数的数量 | 三十二点五度 | 32.5 度 |
-| 时间表达 | 下午两点三十五分 | 下午 2 点 35 分 |
-| 连续数字/年份 | 二零二五年 | 2025 年 |
-| 幺字序列（电话/门牌）| 幺八幺三五七七 | 1813577 |
-| IP 地址 | 幺九二点幺六八点一点一 | 192.168.1.1 |
-| at 符号（艾特/AT）| root 艾特幺零点幺零点二零点三二 | root@10.10.20.32 |
-| 域名/邮箱后缀 | example 点 com | example.com |
+| 阶段 | 耗时 |
+|------|------|
+| ASR 推理 (Mano-ASR MLX 8-bit) | ~0.2s |
+| LLM 后处理 (Qwen3.5 4B CUDA) | ~0.3s |
+| 总计 | ~0.5s |
 
-裸单位字（「百度」「万岁」「十分好」等）不会被误触发。
+GPU 显存占用：ASR ~2.5 GB + LLM ~3.2 GB ≈ 5.7 GB。
 
 ## 目录结构
 
 ```
 asr-server/
-├── main.py                  # 入口：启动 uvicorn
-├── hotwords.toml            # 热词词典（运行时热更新）
+├── main.py                       # 入口
+├── hotwords.toml                 # 热词词典
+├── default_prompt.txt            # LLM 清理 Prompt（可热编辑）
 ├── pyproject.toml
-├── app/                     # 业务包
-│   ├── __init__.py          # 导出 FastAPI app
-│   ├── config.py            # 全局常量
-│   ├── logger.py            # 按日滚动日志
-│   ├── errors.py            # 业务异常基类
-│   ├── db.py                # SQLite 持久化
-│   ├── stats.py             # 击键数估算
-│   ├── model.py             # Qwen3-ASR 加载与推理
-│   ├── api/                 # HTTP 边界
-│   │   ├── __init__.py      # FastAPI 装配（lifespan + 中间件 + 路由）
-│   │   ├── routes.py        # /v1/audio + /api/stats/* + /health
-│   │   ├── middleware.py    # IP 白名单 + peer 解析
-│   │   └── exceptions.py    # 4 类异常处理器
-│   └── post_process/        # 后处理子系统（强耦合聚合）
-│       ├── __init__.py      # 对外暴露 normalize_numbers
-│       ├── core.py          # 数字 / 热词 / 字母序列规则
-│       └── hot_reload.py    # 按 mtime 重载 core
-├── static/dashboard/        # 前端资源
-├── tests/                   # pytest
-├── models/                  # 模型权重（gitignore）
-├── data/                    # SQLite db（gitignore）
-├── recordings/              # 转录原始音频（gitignore）
-└── logs/                    # 运行日志（gitignore）
+├── app/
+│   ├── api/
+│   │   ├── __init__.py           # FastAPI 装配
+│   │   ├── routes.py             # 转写 + 统计 + 模型管理 + 后处理 API
+│   │   ├── middleware.py          # IP 白名单
+│   │   └── exceptions.py         # 异常处理
+│   ├── backends/                 # ASR 后端（可插拔）
+│   │   ├── base.py               # Backend 协议
+│   │   ├── qwen.py               # Qwen3-ASR (PyTorch)
+│   │   ├── funasr.py             # FunASR (SenseVoice/Paraformer/Whisper)
+│   │   └── mlx_qwen.py           # MLX 量化 Qwen3-ASR
+│   ├── post_process/             # 中文数字后处理
+│   │   ├── core.py               # 数字/热词/字母序列规则
+│   │   └── hot_reload.py         # 按 mtime 热重载
+│   ├── post_process_model.py     # LLM 后处理：配置 + 推理
+│   ├── model.py                  # 模型生命周期管理
+│   ├── models_registry.py        # 模型目录扫描
+│   ├── config.py                 # 全局配置
+│   ├── db.py                     # SQLite 持久化
+│   ├── stats.py                  # 击键数估算
+│   ├── downloader.py             # ModelScope 异步下载
+│   ├── recommended.py            # 推荐 ASR 模型清单
+│   └── modelscope_search.py      # ModelScope 搜索代理
+├── models/                       # 模型权重
+│   ├── asr/                      # ASR 模型（HuggingFace 目录格式）
+│   └── llm/                      # LLM 模型（GGUF 文件）
+├── static/dashboard/             # 前端面板
+├── docs/                         # 文档
+│   └── cuda-acceleration.md      # CUDA 编译指南
+├── tests/                        # pytest
+├── data/                         # SQLite + 配置持久化
+├── recordings/                   # 转录原始音频
+└── logs/                         # 运行日志
 ```
 
 ## 安装
@@ -68,6 +74,18 @@ asr-server/
 uv sync
 ```
 
+### CUDA 加速（LLM 后处理）
+
+PyPI 的 `llama-cpp-python` wheel 是 CPU-only。GPU 推理需要从源码编译，详见 `docs/cuda-acceleration.md`。
+
+### LLM 模型下载
+
+```bash
+# 从 HuggingFace 下载 unsloth 4-bit 量化 GGUF
+ALL_PROXY=http://127.0.0.1:7897 hf download unsloth/Qwen3.5-4B-GGUF \
+  Qwen3.5-4B-Q4_K_M.gguf --local-dir models/llm/
+```
+
 ## 启动服务
 
 ```bash
@@ -76,9 +94,9 @@ uv run main.py
 
 服务默认监听 `0.0.0.0:9999`，纯 HTTP。前端面板访问 `http://localhost:9999/dashboard/`。
 
-### MLX 量化模型
+### MLX 量化模型环境变量
 
-若使用 MLX 量化模型（如 Mano-ASR），需设置以下环境变量避免 CUDA cache 耗尽导致推理失败：
+若使用 MLX 量化模型（如 Mano-ASR），需设置：
 
 ```bash
 export MLX_CUDA_CONV_CACHE_SIZE=1024
@@ -87,48 +105,51 @@ export MLX_CUDA_SDPA_CACHE_SIZE=1024
 export MLX_CUDA_FFT_CACHE_SIZE=1024
 ```
 
-原因：MLX 对卷积算法、CUDA Graph、attention 算子的缓存有上限（默认 128~400），大模型（≥1.7B）+ 8bit 量化的计算图复杂度会超出默认容量。MLX 的设计选择是抛 `RuntimeError: Cache thrashing` 而非静默驱逐旧条目，以确保用户感知到性能退化。
-
-若使用标准 PyTorch 模型（`qwen-asr` 或 `funasr` backend）则无需关心以上变量。
-
 ## API
 
 ### POST /v1/audio/transcriptions
 
-上传音频文件，返回转写文本。兼容 OpenAI Whisper API 格式。
-
 ```bash
-curl -X POST http://localhost:9999/v1/audio/transcriptions \
-  -F "file=@audio.wav"
-```
-
-```json
-{ "text": "识别结果" }
+curl -X POST http://localhost:9999/v1/audio/transcriptions -F "file=@audio.wav"
+# {"text": "识别结果"}
 ```
 
 ### GET /health
 
-健康检查。
-
 ```bash
 curl http://localhost:9999/health
-```
-
-```json
-{"status": "ok"}
+# {"status": "ok"}
 ```
 
 ### Dashboard 统计 API
 
 | 路径 | 说明 |
 |------|------|
-| `GET /api/stats/summary` | 累计统计（支持 client / days 过滤） |
+| `GET /api/stats/summary` | 累计统计（含 avg_postprocess_ms） |
 | `GET /api/stats/daily` | 每日聚合 |
-| `GET /api/stats/clients` | 已知客户端列表 |
-| `GET /api/stats/by-client` | 按客户端分桶 |
-| `GET /api/stats/recent` | 最近转录（支持 q / since / until / post_processed） |
+| `GET /api/stats/recent` | 最近转录（含 postprocess_ms / post_model_name） |
 | `GET /api/recordings/{id}` | 单条详情 |
 | `GET /api/recordings/{id}/audio` | 原始音频 |
+
+### 后处理模型 API
+
+| 路径 | 说明 |
+|------|------|
+| `GET /api/post-process/config` | 获取配置 + 本地模型列表 |
+| `PUT /api/post-process/config` | 更新配置 |
+| `POST /api/post-process/test` | 测试文本清理 |
+| `POST /api/post-process/active` | 切换激活模型 |
+| `GET /api/post-process/search` | 搜索 ModelScope LLM |
+| `POST /api/post-process/download` | 下载模型 |
+
+### 模型管理 API
+
+| 路径 | 说明 |
+|------|------|
+| `GET /api/models` | 已安装模型 + 推荐列表 |
+| `POST /api/models/active` | 切换 ASR 模型 |
+| `POST /api/models/download` | 下载模型 |
+| `DELETE /api/models/{name}` | 删除模型 |
 
 ## 运行测试
 
@@ -140,9 +161,12 @@ uv run pytest tests/
 
 | 依赖 | 用途 |
 |------|------|
-| FastAPI | HTTP 框架 |
-| uvicorn | ASGI 服务器 |
-| PyTorch | 模型推理 |
-| qwen-asr | Qwen3-ASR 模型封装 |
+| FastAPI / uvicorn | HTTP 框架 |
+| PyTorch | ASR 模型推理 |
+| qwen-asr | Qwen3-ASR 封装 |
+| funasr | SenseVoice/Paraformer/Whisper 后端 |
+| mlx / mlx-qwen3-asr | MLX 量化推理 |
+| llama-cpp-python | LLM GGUF 推理 |
 | librosa / soundfile | 音频读取 |
-| pypinyin | 拼音匹配（热词 + 击键估算） |
+| pypinyin | 拼音匹配 + 击键估算 |
+| httpx | HTTP 客户端（endpoint 模式） |
