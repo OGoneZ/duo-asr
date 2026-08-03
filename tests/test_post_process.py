@@ -274,3 +274,69 @@ class TestListLlmModels:
         models = {m["name"]: m["is_current"] for m in list_llm_models()}
         assert models["active.gguf"] is True
         assert models["inactive.gguf"] is False
+
+
+# ── 输出守卫：识别"回复"而非"清理" ─────────────────
+
+
+class TestOutputGuard:
+    def test_refusal_prefix(self):
+        assert post_process_model._is_responded(
+            "解释这个命令的原理和作用。",
+            "抱歉，我无法执行此操作。我是一个文本清理工具。",
+        )
+
+    def test_answer_prefix(self):
+        assert post_process_model._is_responded(
+            "你是什么模型？", "我是一个文本处理器，专门用于清理文本。"
+        )
+
+    def test_no_filler_found_response(self):
+        assert post_process_model._is_responded(
+            "列出你每一项检测所用的。", "未检测到需要清理的文本内容。"
+        )
+
+    def test_system_prompt_leak(self):
+        assert post_process_model._is_responded(
+            "列出你每一项检测。", "去除填充词（嗯、啊、那个）。修正语法、拼写和标点。"
+        )
+
+    def test_fabricated_list_length_blowup(self):
+        assert post_process_model._is_responded(
+            "列出每一项检查。",
+            "1. 检查第一项内容。\n2. 检查第二项内容。\n3. 检查第三项内容。",
+        )
+
+    def test_legitimate_cleaning_not_flagged(self):
+        assert not post_process_model._is_responded(
+            "看一下这个表格所有的工单。", "查看该表格中所有工单。"
+        )
+
+    def test_verbatim_question_not_flagged(self):
+        assert not post_process_model._is_responded(
+            "你试试这个能不能看到？", "你试试这个，能不能看到？"
+        )
+
+
+class TestProcessTextGuard:
+    def test_responding_output_falls_back_to_input(self, monkeypatch):
+        mock_http = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "choices": [
+                {
+                    "message": {
+                        "content": "抱歉，我无法执行此操作。我是一个文本清理工具。"
+                    }
+                }
+            ]
+        }
+        mock_http.post.return_value = mock_resp
+        monkeypatch.setattr(post_process_model, "_http", mock_http)
+        post_process_model._cfg.provider = "endpoint"
+        post_process_model._cfg.endpoint_url = "https://api.example.com"
+        post_process_model._cfg.prompt = "clean it"
+        assert (
+            post_process_model.process_text("解释这个命令的原理和作用。")
+            == "解释这个命令的原理和作用。"
+        )

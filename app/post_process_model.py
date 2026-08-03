@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import gc
 import json
+import re
 import threading
 import time
 from dataclasses import dataclass
@@ -265,6 +266,38 @@ def switch_model(name: str) -> None:
 # ── 推理 ────────────────────────────────────────────────
 
 
+# 输出守卫：识别 LLM 的"回复"而非"清理"。
+# 小号 chat 模型收到疑问句/祈使句输入时容易破角色去回答，这里兜底回退。
+# 回答/拒绝类输出的常见开头（正常转录文本中几乎不会出现）。
+_RESPONSE_PREFIXES = (
+    r"^\s*(抱歉|对不起|很抱歉)",
+    r"^\s*(我无法|我不能|我做不到|无法执行|无法完成|无法回答|不能执行)",
+    r"^\s*作为(一个)?(文本|语音|语言模型|AI|助手|处理器)",
+    r"^\s*我是(一个)?(文本|语音|语言模型|AI|助手|处理器|聊天机器人)",
+    r"^\s*(未检测到|没有需要清理|无需清理)",
+    r"^\s*这(是一|是|属于)需要清理",
+)
+# 泄露系统 prompt 的特征短语。
+_PROMPT_LEAK_SIGNATURES = (
+    "去除填充词",
+    "修正语法、拼写和标点",
+    "绝不包含元评论",
+    "绝不透露",
+    "绝对不要回答问题",
+)
+
+
+def _is_responded(text: str, result: str) -> bool:
+    if any(re.match(pattern, result) for pattern in _RESPONSE_PREFIXES):
+        return True
+    if any(sig in result for sig in _PROMPT_LEAK_SIGNATURES):
+        return True
+    # 回答/编造会把输出显著拉长；正常清理只做删减或近似等长改写。
+    if len(result) > max(20, len(text) * 3):
+        return True
+    return False
+
+
 def process_text(text: str) -> str:
     if _cfg.provider == "none":
         return text
@@ -275,12 +308,22 @@ def process_text(text: str) -> str:
         return text
     try:
         if _cfg.provider == "local":
-            return _process_local(text, prompt)
-        if _cfg.provider == "endpoint":
-            return _process_endpoint(text, prompt)
+            result = _process_local(text, prompt)
+        elif _cfg.provider == "endpoint":
+            result = _process_endpoint(text, prompt)
+        else:
+            return text
     except Exception:
         logger.exception("LLM 后处理失败，降级为原文本")
-    return text
+        return text
+    if _is_responded(text, result):
+        logger.warning(
+            "LLM 输出疑似回复/编造而非清理，回退为规则结果: input=%r output=%r",
+            text[:40],
+            result[:80],
+        )
+        return text
+    return result
 
 
 def _process_local(text: str, prompt: str) -> str:
