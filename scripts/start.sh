@@ -13,10 +13,13 @@ uv sync
 echo "=== 恢复 CUDA 版 llama-cpp-python ==="
 bash scripts/rebuild-cuda-llama.sh
 
-export MLX_CUDA_CONV_CACHE_SIZE=${MLX_CUDA_CONV_CACHE_SIZE:-1024}
+export MLX_CUDA_CONV_CACHE_SIZE=${MLX_CUDA_CONV_CACHE_SIZE:-4096}
 export MLX_CUDA_GRAPH_CACHE_SIZE=${MLX_CUDA_GRAPH_CACHE_SIZE:-4096}
 export MLX_CUDA_SDPA_CACHE_SIZE=${MLX_CUDA_SDPA_CACHE_SIZE:-1024}
 export MLX_CUDA_FFT_CACHE_SIZE=${MLX_CUDA_FFT_CACHE_SIZE:-1024}
+# MLX 的 thrashing 检测在长跑服务上会把本可降速完成的请求直接抛异常打回 500，
+# 关掉它；缓存已调大，真实 thrashing 概率本身很低。
+export MLX_ENABLE_CACHE_THRASHING_CHECK=${MLX_ENABLE_CACHE_THRASHING_CHECK:-0}
 
 echo "=== 启动服务 (nohup, 日志 logs/stdout.log) ==="
 nohup .venv/bin/python main.py >> logs/stdout.log 2>&1 &

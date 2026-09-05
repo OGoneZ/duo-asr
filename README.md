@@ -109,10 +109,12 @@ uv run main.py
 若使用 MLX 量化模型（如 Mano-ASR），需设置：
 
 ```bash
-export MLX_CUDA_CONV_CACHE_SIZE=1024
+export MLX_CUDA_CONV_CACHE_SIZE=4096
 export MLX_CUDA_GRAPH_CACHE_SIZE=4096
 export MLX_CUDA_SDPA_CACHE_SIZE=1024
 export MLX_CUDA_FFT_CACHE_SIZE=1024
+# 可选：关掉 thrashing 硬检测（MLX 检测到缓存抖动时默认直接抛异常使请求失败）
+export MLX_ENABLE_CACHE_THRASHING_CHECK=0
 ```
 
 ## API
