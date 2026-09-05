@@ -89,8 +89,18 @@ ALL_PROXY=http://127.0.0.1:7897 hf download unsloth/Qwen3.5-4B-GGUF \
 ## 启动服务
 
 ```bash
+bash scripts/start.sh   # 推荐：uv sync → 恢复 CUDA llama → 后台启动
+```
+
+或手动前台启动：
+
+```bash
 uv run main.py
 ```
+
+> ⚠️ 每次 `uv sync` 之后必须运行 `bash scripts/rebuild-cuda-llama.sh`，
+> 否则 `llama-cpp-python` 会被 PyPI 的 CPU wheel 覆盖，LLM 后处理掉回 CPU
+> （实测单次转写 0.5s 恶化到 ~18s）。`start.sh` 已包含这一步。
 
 服务默认监听 `0.0.0.0:9999`，纯 HTTP。前端面板访问 `http://localhost:9999/dashboard/`。
 
@@ -100,7 +110,7 @@ uv run main.py
 
 ```bash
 export MLX_CUDA_CONV_CACHE_SIZE=1024
-export MLX_CUDA_GRAPH_CACHE_SIZE=1024
+export MLX_CUDA_GRAPH_CACHE_SIZE=4096
 export MLX_CUDA_SDPA_CACHE_SIZE=1024
 export MLX_CUDA_FFT_CACHE_SIZE=1024
 ```
